@@ -1,0 +1,36 @@
+name: Build and Deploy Discovery App
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'discovery/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Build and push Docker image
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+    
+    - name: Build and push image
+      run: |
+        docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }} ./discovery
+        docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }}
+    
+    - name: Update Container App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: "discovery"
+        images: ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }}

@@ -7,18 +7,18 @@ param mediaCount int = 1
 
 // Server name arrays
 var relayNames = [
-  'Ribbo', 'Rilo', 'Riffu', 'Rixi', 'Rova', 'Rymba', 'Rorbo', 'Rukku', 'Razzle', 'Rilby', 
-  'Rambu', 'Rizzo', 'Rilka', 'Rulo', 'Ruvvi', 'Rinoo', 'Ribbly', 'Rasko', 'Roffo', 'Rilza', 
-  'Rmodo', 'Rembo', 'Rinzo', 'Ruppi', 'Rozi', 'Rucco', 'Rilma', 'Roppi', 'Ruvzo', 'Rilku', 
-  'Rirby', 'Riso', 'Ruzz', 'Roppo', 'Ruzi', 'Rilvo', 'Rordy', 'Ramzy', 'Rozzo', 'Rimp', 
+  'Ribbo', 'Rilo', 'Riffu', 'Rixi', 'Rova', 'Rymba', 'Rorbo', 'Rukku', 'Razzle', 'Rilby',
+  'Rambu', 'Rizzo', 'Rilka', 'Rulo', 'Ruvvi', 'Rinoo', 'Ribbly', 'Rasko', 'Roffo', 'Rilza',
+  'Rmodo', 'Rembo', 'Rinzo', 'Ruppi', 'Rozi', 'Rucco', 'Rilma', 'Roppi', 'Ruvzo', 'Rilku',
+  'Rirby', 'Riso', 'Ruzz', 'Roppo', 'Ruzi', 'Rilvo', 'Rordy', 'Ramzy', 'Rozzo', 'Rimp',
   'Rluno', 'Rippo', 'Rilno', 'Rikko', 'Rufko', 'Reppo', 'Romby', 'Rilzo', 'Rakku', 'Rumpo', 'Rifbo'
 ]
 
 var mediaNames = [
-  'Mibbo', 'Milo', 'Miffu', 'Mixi', 'Mova', 'Mymba', 'Morbo', 'Mukku', 'Mazzle', 'Milby', 
-  'Mambu', 'Mizzo', 'Milka', 'Mulo', 'Muvvi', 'Minoo', 'Mibbly', 'Masko', 'Moffo', 'Milza', 
-  'Mmodo', 'Membo', 'Minzo', 'Muppi', 'Mozi', 'Mucco', 'Milma', 'Moppi', 'Muvzo', 'Milku', 
-  'Mirby', 'Miso', 'Muzz', 'Moppo', 'Muzi', 'Milvo', 'Mordy', 'Mamzy', 'Mozzo', 'Mimp', 
+  'Mibbo', 'Milo', 'Miffu', 'Mixi', 'Mova', 'Mymba', 'Morbo', 'Mukku', 'Mazzle', 'Milby',
+  'Mambu', 'Mizzo', 'Milka', 'Mulo', 'Muvvi', 'Minoo', 'Mibbly', 'Masko', 'Moffo', 'Milza',
+  'Mmodo', 'Membo', 'Minzo', 'Muppi', 'Mozi', 'Mucco', 'Milma', 'Moppi', 'Muvzo', 'Milku',
+  'Mirby', 'Miso', 'Muzz', 'Moppo', 'Muzi', 'Milvo', 'Mordy', 'Mamzy', 'Mozzo', 'Mimp',
   'Mluno', 'Mippo', 'Milno', 'Mikko', 'Mufko', 'Meppo', 'Momby', 'Milzo', 'Makku', 'Mumpo', 'Mifbo'
 ]
 

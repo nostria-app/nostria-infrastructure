@@ -5,6 +5,7 @@ param containerImage string
 param customDomainName string = ''
 param appSettings array = []
 param storageAccountName string
+@secure()
 param storageAccountKey string
 param mountPath string = '/data'
 param shareName string = 'data'

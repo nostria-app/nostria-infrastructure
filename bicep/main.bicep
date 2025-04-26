@@ -69,6 +69,72 @@ module discoveryApp 'modules/container-app.bicep' = {
   }
 }
 
+// Storage Account for About site
+module aboutStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-about-storage-deployment'
+  params: {
+    name: '${baseAppName}about'
+    location: location
+  }
+}
+
+// Backup Storage for About site
+module aboutBackupStorage 'modules/backup.bicep' = {
+  name: '${baseAppName}-about-backup-deployment'
+  params: {
+    sourceStorageAccountName: aboutStorage.outputs.name
+    location: location
+  }
+}
+
+// About App (Single instance)
+module aboutApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-about-app-deployment'
+  params: {
+    name: 'about'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'myrepo/about:latest'
+    customDomainName: 'about.nostria.app'
+    storageAccountName: aboutStorage.outputs.name
+    storageAccountKey: aboutStorage.outputs.key
+    appSettings: []
+  }
+}
+
+// Storage Account for Main app site
+module appStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-app-storage-deployment'
+  params: {
+    name: '${baseAppName}app'
+    location: location
+  }
+}
+
+// Backup Storage for Main app site
+module appBackupStorage 'modules/backup.bicep' = {
+  name: '${baseAppName}-app-backup-deployment'
+  params: {
+    sourceStorageAccountName: appStorage.outputs.name
+    location: location
+  }
+}
+
+// Main App (Single instance)
+module mainApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-main-app-deployment'
+  params: {
+    name: 'app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'myrepo/app:latest'
+    customDomainName: 'nostria.app'
+    storageAccountName: appStorage.outputs.name
+    storageAccountKey: appStorage.outputs.key
+    appSettings: []
+  }
+}
+
 // Deploy multiple relay instances as needed
 module relayStorage 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
   name: '${baseAppName}-${toLower(relayNames[i])}-storage-deployment'
@@ -133,5 +199,7 @@ module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount):
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
 output discoveryAppUrl string = 'https://${discoveryApp.outputs.hostname}'
+output aboutAppUrl string = 'https://${aboutApp.outputs.hostname}'
+output mainAppUrl string = 'https://${mainApp.outputs.hostname}'
 output relayAppUrls array = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.nostria.app']
 output mediaAppUrls array = [for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}.nostria.app']

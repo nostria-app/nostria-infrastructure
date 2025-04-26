@@ -39,6 +39,8 @@ if ($deploymentResult.ProvisioningState -eq "Succeeded") {
     Write-Host "Deployment successful!" -ForegroundColor Green
     Write-Host "App Service Plan: $($deploymentResult.Outputs.appServicePlanName.Value)" -ForegroundColor Cyan
     Write-Host "Discovery App URL: $($deploymentResult.Outputs.discoveryAppUrl.Value)" -ForegroundColor Cyan
+    Write-Host "About App URL: $($deploymentResult.Outputs.aboutAppUrl.Value)" -ForegroundColor Cyan
+    Write-Host "Main App URL: $($deploymentResult.Outputs.mainAppUrl.Value)" -ForegroundColor Cyan
     
     Write-Host "Relay App URLs:" -ForegroundColor Cyan
     foreach ($url in $deploymentResult.Outputs.relayAppUrls.Value) {

@@ -5,6 +5,23 @@ param baseAppName string = 'nostria'
 param relayCount int = 1
 param mediaCount int = 1
 
+// Server name arrays
+var relayNames = [
+  'Ribbo', 'Rilo', 'Riffu', 'Rixi', 'Rova', 'Rymba', 'Rorbo', 'Rukku', 'Razzle', 'Rilby', 
+  'Rambu', 'Rizzo', 'Rilka', 'Rulo', 'Ruvvi', 'Rinoo', 'Ribbly', 'Rasko', 'Roffo', 'Rilza', 
+  'Rmodo', 'Rembo', 'Rinzo', 'Ruppi', 'Rozi', 'Rucco', 'Rilma', 'Roppi', 'Ruvzo', 'Rilku', 
+  'Rirby', 'Riso', 'Ruzz', 'Roppo', 'Ruzi', 'Rilvo', 'Rordy', 'Ramzy', 'Rozzo', 'Rimp', 
+  'Rluno', 'Rippo', 'Rilno', 'Rikko', 'Rufko', 'Reppo', 'Romby', 'Rilzo', 'Rakku', 'Rumpo', 'Rifbo'
+]
+
+var mediaNames = [
+  'Mibbo', 'Milo', 'Miffu', 'Mixi', 'Mova', 'Mymba', 'Morbo', 'Mukku', 'Mazzle', 'Milby', 
+  'Mambu', 'Mizzo', 'Milka', 'Mulo', 'Muvvi', 'Minoo', 'Mibbly', 'Masko', 'Moffo', 'Milza', 
+  'Mmodo', 'Membo', 'Minzo', 'Muppi', 'Mozi', 'Mucco', 'Milma', 'Moppi', 'Muvzo', 'Milku', 
+  'Mirby', 'Miso', 'Muzz', 'Moppo', 'Muzi', 'Milvo', 'Mordy', 'Mamzy', 'Mozzo', 'Mimp', 
+  'Mluno', 'Mippo', 'Milno', 'Mikko', 'Mufko', 'Meppo', 'Momby', 'Milzo', 'Makku', 'Mumpo', 'Mifbo'
+]
+
 // Deploy the main App Service Plan for all container apps
 module appServicePlan 'modules/app-service-plan.bicep' = {
   name: '${baseAppName}-plan-deployment'
@@ -53,62 +70,62 @@ module discoveryApp 'modules/container-app.bicep' = {
 }
 
 // Deploy multiple relay instances as needed
-module relayStorage 'modules/storage-account.bicep' = [for i in range(1, relayCount): {
-  name: '${baseAppName}-relay${i}-storage-deployment'
+module relayStorage 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-${toLower(relayNames[i])}-storage-deployment'
   params: {
-    name: '${baseAppName}relay${i}'
+    name: '${baseAppName}${toLower(relayNames[i])}'
     location: location
   }
 }]
 
-module relayBackupStorage 'modules/backup.bicep' = [for i in range(1, relayCount): {
-  name: '${baseAppName}-relay${i}-backup-deployment'
+module relayBackupStorage 'modules/backup.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-${toLower(relayNames[i])}-backup-deployment'
   params: {
-    sourceStorageAccountName: relayStorage[i-1].outputs.name
+    sourceStorageAccountName: relayStorage[i].outputs.name
     location: location
   }
 }]
 
-module relayApps 'modules/container-app.bicep' = [for i in range(1, relayCount): {
-  name: '${baseAppName}-relay${i}-app-deployment'
+module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-${toLower(relayNames[i])}-app-deployment'
   params: {
-    name: 'relay${i}'
+    name: toLower(relayNames[i])
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'myrepo/relay:latest'
-    customDomainName: 'relay${i}.nostria.app'
-    storageAccountName: relayStorage[i-1].outputs.name
-    storageAccountKey: relayStorage[i-1].outputs.key
+    customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    storageAccountName: relayStorage[i].outputs.name
+    storageAccountKey: relayStorage[i].outputs.key
   }
 }]
 
 // Deploy multiple media instances as needed
-module mediaStorage 'modules/storage-account.bicep' = [for i in range(1, mediaCount): {
-  name: '${baseAppName}-media${i}-storage-deployment'
+module mediaStorage 'modules/storage-account.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-${toLower(mediaNames[i])}-storage-deployment'
   params: {
-    name: '${baseAppName}media${i}'
+    name: '${baseAppName}${toLower(mediaNames[i])}'
     location: location
   }
 }]
 
-module mediaBackupStorage 'modules/backup.bicep' = [for i in range(1, mediaCount): {
-  name: '${baseAppName}-media${i}-backup-deployment'
+module mediaBackupStorage 'modules/backup.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-${toLower(mediaNames[i])}-backup-deployment'
   params: {
-    sourceStorageAccountName: mediaStorage[i-1].outputs.name
+    sourceStorageAccountName: mediaStorage[i].outputs.name
     location: location
   }
 }]
 
-module mediaApps 'modules/container-app.bicep' = [for i in range(1, mediaCount): {
-  name: '${baseAppName}-media${i}-app-deployment'
+module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-${toLower(mediaNames[i])}-app-deployment'
   params: {
-    name: 'media${i}'
+    name: toLower(mediaNames[i])
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'myrepo/media:latest'
-    customDomainName: 'media${i}.nostria.app'
-    storageAccountName: mediaStorage[i-1].outputs.name
-    storageAccountKey: mediaStorage[i-1].outputs.key
+    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    storageAccountName: mediaStorage[i].outputs.name
+    storageAccountKey: mediaStorage[i].outputs.key
   }
 }]
 
@@ -116,5 +133,5 @@ module mediaApps 'modules/container-app.bicep' = [for i in range(1, mediaCount):
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
 output discoveryAppUrl string = 'https://${discoveryApp.outputs.hostname}'
-output relayAppUrls array = [for i in range(1, relayCount): 'https://relay${i}.nostria.app']
-output mediaAppUrls array = [for i in range(1, mediaCount): 'https://media${i}.nostria.app']
+output relayAppUrls array = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.nostria.app']
+output mediaAppUrls array = [for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}.nostria.app']

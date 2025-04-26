@@ -18,19 +18,16 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
     
     - name: Build and push Docker image
-      uses: azure/docker-login@v1
+      uses: docker/build-push-action@v2
       with:
-        login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
-        username: ${{ secrets.REGISTRY_USERNAME }}
-        password: ${{ secrets.REGISTRY_PASSWORD }}
-    
-    - name: Build and push image
-      run: |
-        docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }} ./discovery
-        docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }}
-    
-    - name: Update Container App
+        context: ./discovery
+        push: true
+        tags: ghcr.io/nostria-app/discovery:${{ github.sha }}
+
+    - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
-        app-name: "discovery"
-        images: ${{ secrets.REGISTRY_LOGIN_SERVER }}/discovery:${{ github.sha }}
+        app-name: 'discovery'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        images: ghcr.io/nostria-app/discovery:${{ github.sha }}

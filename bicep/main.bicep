@@ -40,11 +40,16 @@ module discoveryStorage 'modules/storage-account.bicep' = {
   }
 }
 
+resource discoveryStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+  name: '${baseAppName}discovery'
+  // scope: resourceGroup(subscriptionId, kvResourceGroup )
+}
+
 // Backup Storage for Discovery
 module discoveryBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-discovery-backup-deployment'
   params: {
-    sourceStorageAccountName: discoveryStorage.outputs.name
+    sourceStorageAccountName: discoveryStorage.name
     location: location
   }
 }
@@ -59,7 +64,7 @@ module discoveryApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'discovery.nostria.app'
     storageAccountName: discoveryStorage.outputs.name
-    storageAccountKey: listKeys(discoveryStorage.name, '2024-11-01').keys[0].value
+    storageAccountKey: discoveryStorageInstance.listKeys().keys[0].value
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -98,6 +103,11 @@ module websiteStorage 'modules/storage-account.bicep' = {
   }
 }
 
+resource websiteStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+  name: '${baseAppName}website'
+  // scope: resourceGroup(subscriptionId, kvResourceGroup )
+}
+
 // Backup Storage for Website
 module websiteBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-website-backup-deployment'
@@ -117,7 +127,7 @@ module websiteApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'www.nostria.app'
     storageAccountName: websiteStorage.outputs.name
-    storageAccountKey: listKeys(websiteStorage.name, '2024-11-01').keys[0].value
+    storageAccountKey: websiteStorageInstance.listKeys().keys[0].value
     appSettings: []
   }
 }
@@ -129,6 +139,11 @@ module appStorage 'modules/storage-account.bicep' = {
     name: '${baseAppName}app'
     location: location
   }
+}
+
+resource appStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+  name: '${baseAppName}app'
+  // scope: resourceGroup(subscriptionId, kvResourceGroup )
 }
 
 // Backup Storage for Main app site
@@ -150,7 +165,7 @@ module mainApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'nostria.app'
     storageAccountName: appStorage.outputs.name
-    storageAccountKey: listKeys(appStorage.name, '2024-11-01').keys[0].value
+    storageAccountKey: appStorageInstance.listKeys().keys[0].value
     appSettings: []
   }
 }
@@ -163,6 +178,12 @@ module relayStorage 'modules/storage-account.bicep' = [
       name: '${baseAppName}${toLower(relayNames[i])}'
       location: location
     }
+  }
+]
+
+resource relayStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = [
+  for i in range(0, relayCount): {
+    name: '${baseAppName}${toLower(relayNames[i])}'
   }
 ]
 
@@ -186,7 +207,7 @@ module relayApps 'modules/container-app.bicep' = [
       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
       customDomainName: '${toLower(relayNames[i])}.nostria.app'
       storageAccountName: relayStorage[i].outputs.name
-      storageAccountKey: listKeys(relayStorage[i].name, '2024-11-01').keys[0].value
+      storageAccountKey: relayStorageInstance[i].listKeys().keys[0].value
     }
   }
 ]
@@ -199,6 +220,12 @@ module mediaStorage 'modules/storage-account.bicep' = [
       name: '${baseAppName}${toLower(mediaNames[i])}'
       location: location
     }
+  }
+]
+
+resource mediaStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = [
+  for i in range(0, relayCount): {
+    name: '${baseAppName}${toLower(mediaNames[i])}'
   }
 ]
 
@@ -222,7 +249,7 @@ module mediaApps 'modules/container-app.bicep' = [
       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
       customDomainName: '${toLower(mediaNames[i])}.nostria.app'
       storageAccountName: mediaStorage[i].outputs.name
-      storageAccountKey: listKeys(mediaStorage[i].name, '2024-11-01').keys[0].value
+      storageAccountKey: mediaStorageInstance[i].listKeys().keys[0].value
     }
   }
 ]

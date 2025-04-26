@@ -69,20 +69,25 @@ jobs:
           azPSVersion: 'latest'
           
       - name: Log Deployment Results
-        uses: azure/powershell@v2
-        with:
-          inlineScript: |
-            $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
-            Write-Host "Deployment to $resourceGroupName completed"
+        shell: pwsh
+        run: |
+          $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
+          Write-Host "Deployment to $resourceGroupName completed"
+          
+          # Get deployment status using Azure CLI
+          $deployments = az deployment group list --resource-group $resourceGroupName --query "[?contains(name, 'nostria-deployment')].{Name:name, Status:properties.provisioningState}" --output json | ConvertFrom-Json
+          $latestDeployment = $deployments | Sort-Object Name -Descending | Select-Object -First 1
+          
+          if ($latestDeployment) {
+            Write-Host "Latest deployment: $($latestDeployment.Name), status: $($latestDeployment.Status)"
             
-            # Get deployment status
-            $deployment = Get-AzResourceGroupDeployment -ResourceGroupName $resourceGroupName -Name "nostria-deployment-*" | Sort-Object Timestamp -Descending | Select-Object -First 1
-            Write-Host "Latest deployment status: $($deployment.ProvisioningState)"
-            
-            if ($deployment.ProvisioningState -eq "Succeeded") {
+            if ($latestDeployment.Status -eq "Succeeded") {
               Write-Host "✅ Deployment succeeded"
             } else {
               Write-Host "❌ Deployment failed or is still in progress"
               exit 1
             }
-          azPSVersion: 'latest'
+          } else {
+            Write-Host "❌ No deployment found"
+            exit 1
+          }

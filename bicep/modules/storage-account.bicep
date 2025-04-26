@@ -34,5 +34,3 @@ resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2022-0
 
 output id string = storageAccount.id
 output name string = storageAccount.name
-@secure()
-output key string = storageAccount.listKeys().keys[0].value

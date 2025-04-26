@@ -13,10 +13,10 @@ param(
 )
 
 # Create resource group if it doesn't exist
-$resourceGroup = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue
-if (!$resourceGroup) {
+$resourceGroup = az group show --name $ResourceGroupName 2>&1
+if ($LASTEXITCODE -ne 0) {
     Write-Host "Creating resource group '$ResourceGroupName' in location '$Location'..." -ForegroundColor Yellow
-    New-AzResourceGroup -Name $ResourceGroupName -Location $Location
+    az group create --name $ResourceGroupName --location $Location
     Write-Host "Resource group created." -ForegroundColor Green
 } else {
     Write-Host "Using existing resource group '$ResourceGroupName'." -ForegroundColor Green
@@ -26,31 +26,34 @@ if (!$resourceGroup) {
 $deploymentName = "nostria-deployment-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 Write-Host "Starting deployment: $deploymentName..." -ForegroundColor Yellow
 
-$deploymentResult = New-AzResourceGroupDeployment `
-  -Name $deploymentName `
-  -ResourceGroupName $ResourceGroupName `
-  -TemplateFile "$PSScriptRoot\..\bicep\main.bicep" `
-  -location $Location `
-  -relayCount $RelayCount `
-  -mediaCount $MediaCount `
-  -Verbose
+# Using az deployment group create instead of New-AzResourceGroupDeployment
+$deploymentResult = az deployment group create `
+  --name $deploymentName `
+  --resource-group $ResourceGroupName `
+  --template-file "$PSScriptRoot\..\bicep\main.bicep" `
+  --parameters location=$Location relayCount=$RelayCount mediaCount=$MediaCount `
+  --verbose
 
-if ($deploymentResult.ProvisioningState -eq "Succeeded") {
+# Parse the JSON output 
+$deployment = $deploymentResult | ConvertFrom-Json
+
+if ($deployment.properties.provisioningState -eq "Succeeded") {
     Write-Host "Deployment successful!" -ForegroundColor Green
-    Write-Host "App Service Plan: $($deploymentResult.Outputs.appServicePlanName.Value)" -ForegroundColor Cyan
-    Write-Host "Discovery App URL: $($deploymentResult.Outputs.discoveryAppUrl.Value)" -ForegroundColor Cyan
-    Write-Host "About App URL: $($deploymentResult.Outputs.aboutAppUrl.Value)" -ForegroundColor Cyan
-    Write-Host "Main App URL: $($deploymentResult.Outputs.mainAppUrl.Value)" -ForegroundColor Cyan
+    Write-Host "App Service Plan: $($deployment.properties.outputs.appServicePlanName.value)" -ForegroundColor Cyan
+    Write-Host "Discovery App URL: $($deployment.properties.outputs.discoveryAppUrl.value)" -ForegroundColor Cyan
+    Write-Host "About App URL: $($deployment.properties.outputs.websiteAppUrl.value)" -ForegroundColor Cyan
+    Write-Host "Main App URL: $($deployment.properties.outputs.mainAppUrl.value)" -ForegroundColor Cyan
     
     Write-Host "Relay App URLs:" -ForegroundColor Cyan
-    foreach ($url in $deploymentResult.Outputs.relayAppUrls.Value) {
+    foreach ($url in $deployment.properties.outputs.relayAppUrls.value) {
         Write-Host "- $url" -ForegroundColor Cyan
     }
     
     Write-Host "Media App URLs:" -ForegroundColor Cyan
-    foreach ($url in $deploymentResult.Outputs.mediaAppUrls.Value) {
+    foreach ($url in $deployment.properties.outputs.mediaAppUrls.value) {
         Write-Host "- $url" -ForegroundColor Cyan
     }
 } else {
-    Write-Host "Deployment failed: $($deploymentResult.Error)" -ForegroundColor Red
+    Write-Host "Deployment failed: $($deployment.properties.error)" -ForegroundColor Red
+    exit 1
 }

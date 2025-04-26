@@ -11,22 +11,24 @@ $BackupStorageName = "${SourceStorageName}bkp"
 
 Write-Host "Backing up files from $SourceStorageName to $BackupStorageName..." -ForegroundColor Yellow
 
-# Get storage account keys
+# Get storage account keys using Azure CLI
 try {
-    $sourceKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $SourceStorageName -ErrorAction Stop)[0].Value
-    $backupKey = (Get-AzStorageAccountKey -ResourceGroupName $ResourceGroupName -Name $BackupStorageName -ErrorAction Stop)[0].Value
+    $sourceKey = (az storage account keys list --resource-group $ResourceGroupName --account-name $SourceStorageName --query "[0].value" -o tsv)
+    if ($LASTEXITCODE -ne 0) { throw "Failed to get source storage account key" }
+    
+    $backupKey = (az storage account keys list --resource-group $ResourceGroupName --account-name $BackupStorageName --query "[0].value" -o tsv)
+    if ($LASTEXITCODE -ne 0) { throw "Failed to get backup storage account key" }
 } catch {
     Write-Host "Error retrieving storage account keys: $_" -ForegroundColor Red
     exit 1
 }
 
-# Create storage contexts
-$sourceContext = New-AzStorageContext -StorageAccountName $SourceStorageName -StorageAccountKey $sourceKey
-$backupContext = New-AzStorageContext -StorageAccountName $BackupStorageName -StorageAccountKey $backupKey
-
 # Get all shares from source storage
 try {
-    $shares = Get-AzStorageShare -Context $sourceContext -ErrorAction Stop
+    $sharesJson = (az storage share list --account-name $SourceStorageName --account-key $sourceKey -o json)
+    if ($LASTEXITCODE -ne 0) { throw "Failed to list source shares" }
+    
+    $shares = $sharesJson | ConvertFrom-Json
     Write-Host "Found $($shares.Count) shares to backup." -ForegroundColor Green
 } catch {
     Write-Host "Error retrieving shares: $_" -ForegroundColor Red
@@ -34,14 +36,16 @@ try {
 }
 
 foreach ($share in $shares) {
-    Write-Host "Processing share: $($share.Name)" -ForegroundColor Cyan
+    Write-Host "Processing share: $($share.name)" -ForegroundColor Cyan
     
     # Create backup share if it doesn't exist
-    $backupShareName = "$($share.Name)-backup"
-    $backupShare = Get-AzStorageShare -Name $backupShareName -Context $backupContext -ErrorAction SilentlyContinue
-    if (!$backupShare) {
+    $backupShareName = "$($share.name)-backup"
+    
+    # Check if backup share exists
+    $backupShareExists = (az storage share exists --name $backupShareName --account-name $BackupStorageName --account-key $backupKey --query "exists" -o tsv)
+    if ($backupShareExists -eq "false") {
         Write-Host "  Creating backup share: $backupShareName" -ForegroundColor Yellow
-        New-AzStorageShare -Name $backupShareName -Context $backupContext | Out-Null
+        az storage share create --name $backupShareName --account-name $BackupStorageName --account-key $backupKey | Out-Null
     }
     
     # Create a temporary directory for copying files
@@ -52,30 +56,49 @@ foreach ($share in $shares) {
     try {
         # Download files from source
         Write-Host "  Downloading files from source share..." -ForegroundColor Yellow
-        Get-AzStorageFile -Share $share -Path "/" | Get-AzStorageFileContent -Destination $tempDir -Force -Recurse
+        # List all files in the source share recursively
+        $filesJson = (az storage file list -s $share.name --account-name $SourceStorageName --account-key $sourceKey -p "/" --recursive -o json)
+        $files = $filesJson | ConvertFrom-Json
+        
+        # Download each file
+        foreach ($file in $files) {
+            if ($file.type -eq "file") {
+                $filePath = $file.name
+                $localFilePath = Join-Path $tempDir $filePath
+                
+                # Create parent directory if it doesn't exist
+                $parentDir = Split-Path -Path $localFilePath -Parent
+                if (!(Test-Path $parentDir)) {
+                    New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
+                }
+                
+                # Download the file
+                az storage file download --share-name $share.name --account-name $SourceStorageName --account-key $sourceKey --path $filePath --dest $localFilePath | Out-Null
+            }
+        }
 
         # Upload files to backup
         Write-Host "  Uploading files to backup share..." -ForegroundColor Yellow
-        $files = Get-ChildItem -Path $tempDir -Recurse -File
-        foreach ($file in $files) {
-            $relativePath = $file.FullName.Substring($tempDir.Length + 1)
+        $localFiles = Get-ChildItem -Path $tempDir -Recurse -File
+        foreach ($localFile in $localFiles) {
+            $relativePath = $localFile.FullName.Substring($tempDir.Length + 1)
             $directoryPath = Split-Path -Path $relativePath -Parent
             
             if (![string]::IsNullOrEmpty($directoryPath)) {
                 # Create directory in backup if needed
                 try {
-                    $backupDir = Get-AzStorageFile -Share (Get-AzStorageShare -Name $backupShareName -Context $backupContext) -Path $directoryPath -ErrorAction SilentlyContinue
-                    if (!$backupDir) {
-                        New-AzStorageDirectory -Share (Get-AzStorageShare -Name $backupShareName -Context $backupContext) -Path $directoryPath | Out-Null
+                    $dirExists = (az storage file exists --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --path $directoryPath --query "exists" -o tsv 2>$null)
+                    if ($dirExists -eq "false" -or $LASTEXITCODE -ne 0) {
+                        az storage directory create --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name $directoryPath | Out-Null
                     }
                 } catch {}
             }
             
             # Upload file to backup
-            Set-AzStorageFileContent -Share (Get-AzStorageShare -Name $backupShareName -Context $backupContext) -Source $file.FullName -Path $relativePath -Force | Out-Null
+            az storage file upload --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --source $localFile.FullName --path $relativePath | Out-Null
         }
     } catch {
-        Write-Host "  Error processing share $($share.Name): $_" -ForegroundColor Red
+        Write-Host "  Error processing share $($share.name): $_" -ForegroundColor Red
     } finally {
         # Clean up the temp directory
         Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue

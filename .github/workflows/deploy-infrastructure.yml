@@ -43,10 +43,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Azure PowerShell module
-        uses: azure/powershell@v1
-        with:
-          azPSVersion: 'latest'
+      # - name: Set up Azure PowerShell module
+      #   uses: azure/powershell@v2
+      #   with:
+      #     azPSVersion: 'latest'
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -54,7 +54,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Infrastructure
-        uses: azure/powershell@v1
+        uses: azure/powershell@v2
         with:
           inlineScript: |
             $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
@@ -69,7 +69,7 @@ jobs:
           azPSVersion: 'latest'
           
       - name: Log Deployment Results
-        uses: azure/powershell@v1
+        uses: azure/powershell@v2
         with:
           inlineScript: |
             $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"

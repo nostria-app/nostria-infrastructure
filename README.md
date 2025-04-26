@@ -87,9 +87,6 @@ This repository includes GitHub Actions workflows for automating the deployment 
 
 1. Add the following secrets to your GitHub repository:
    - `AZURE_CREDENTIALS`: JSON output from `az ad sp create-for-rbac` command
-   - `REGISTRY_LOGIN_SERVER`: Your container registry server (e.g., myregistry.azurecr.io)
-   - `REGISTRY_USERNAME`: Registry username
-   - `REGISTRY_PASSWORD`: Registry password
 
 ## Future Improvements
 

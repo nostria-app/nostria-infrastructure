@@ -56,7 +56,7 @@ module discoveryApp 'modules/container-app.bicep' = {
     name: 'discovery'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'myrepo/discovery:latest'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'discovery.nostria.app'
     storageAccountName: discoveryStorage.outputs.name
     storageAccountKey: discoveryStorage.outputs.key
@@ -94,7 +94,7 @@ module aboutApp 'modules/container-app.bicep' = {
     name: 'about'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'myrepo/about:latest'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'about.nostria.app'
     storageAccountName: aboutStorage.outputs.name
     storageAccountKey: aboutStorage.outputs.key
@@ -127,7 +127,7 @@ module mainApp 'modules/container-app.bicep' = {
     name: 'app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'myrepo/app:latest'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'nostria.app'
     storageAccountName: appStorage.outputs.name
     storageAccountKey: appStorage.outputs.key
@@ -158,7 +158,7 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
     name: toLower(relayNames[i])
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'myrepo/relay:latest'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: '${toLower(relayNames[i])}.nostria.app'
     storageAccountName: relayStorage[i].outputs.name
     storageAccountKey: relayStorage[i].outputs.key
@@ -188,7 +188,7 @@ module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount):
     name: toLower(mediaNames[i])
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'myrepo/media:latest'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: '${toLower(mediaNames[i])}.nostria.app'
     storageAccountName: mediaStorage[i].outputs.name
     storageAccountKey: mediaStorage[i].outputs.key

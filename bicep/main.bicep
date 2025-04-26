@@ -59,7 +59,7 @@ module discoveryApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'discovery.nostria.app'
     storageAccountName: discoveryStorage.outputs.name
-    storageAccountKey: listKeys(discoveryStorage.outputs.id, discoveryStorage.outputs.apiVersion).keys[0].value
+    storageAccountKey: listKeys(discoveryStorage.name, '2024-01-01').keys[0].value
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -117,7 +117,7 @@ module websiteApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'www.nostria.app'
     storageAccountName: websiteStorage.outputs.name
-    storageAccountKey: listKeys(websiteStorage.outputs.id, websiteStorage.outputs.apiVersion).keys[0].value
+    storageAccountKey: listKeys(websiteStorage.name, '2024-01-01').keys[0].value
     appSettings: []
   }
 }
@@ -150,7 +150,7 @@ module mainApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'nostria.app'
     storageAccountName: appStorage.outputs.name
-    storageAccountKey: listKeys(appStorage.outputs.id, appStorage.outputs.apiVersion).keys[0].value
+    storageAccountKey: listKeys(appStorage.name, '2024-01-01').keys[0].value
     appSettings: []
   }
 }
@@ -186,7 +186,7 @@ module relayApps 'modules/container-app.bicep' = [
       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
       customDomainName: '${toLower(relayNames[i])}.nostria.app'
       storageAccountName: relayStorage[i].outputs.name
-      storageAccountKey: listKeys(relayStorage[i].outputs.id, relayStorage[i].outputs.apiVersion).keys[0].value
+      storageAccountKey: listKeys(relayStorage[i].name, '2024-01-01').keys[0].value
     }
   }
 ]
@@ -222,7 +222,7 @@ module mediaApps 'modules/container-app.bicep' = [
       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
       customDomainName: '${toLower(mediaNames[i])}.nostria.app'
       storageAccountName: mediaStorage[i].outputs.name
-      storageAccountKey: listKeys(mediaStorage[i].outputs.id, mediaStorage[i].outputs.apiVersion).keys[0].value
+      storageAccountKey: listKeys(mediaStorage[i].name, '2024-01-01').keys[0].value
     }
   }
 ]

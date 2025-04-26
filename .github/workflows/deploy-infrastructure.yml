@@ -1,0 +1,88 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'bicep/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-infrastructure.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'bicep/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-infrastructure.yml'
+  workflow_dispatch:
+    inputs:
+      resourceGroupName:
+        description: 'Azure Resource Group Name'
+        required: true
+        default: 'nostria'
+      location:
+        description: 'Azure Location'
+        required: true
+        default: 'westeurope'
+      relayCount:
+        description: 'Number of relay instances to deploy'
+        required: true
+        default: '1'
+      mediaCount:
+        description: 'Number of media instances to deploy'
+        required: true
+        default: '1'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Azure PowerShell module
+        uses: azure/powershell@v1
+        with:
+          azPSVersion: 'latest'
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Infrastructure
+        uses: azure/powershell@v1
+        with:
+          inlineScript: |
+            $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
+            $location = "${{ github.event.inputs.location || 'westeurope' }}"
+            $relayCount = "${{ github.event.inputs.relayCount || '1' }}"
+            $mediaCount = "${{ github.event.inputs.mediaCount || '1' }}"
+            
+            Write-Host "Deploying infrastructure to resource group: $resourceGroupName in location: $location"
+            Write-Host "Relay Count: $relayCount, Media Count: $mediaCount"
+            
+            ./scripts/deploy.ps1 -ResourceGroupName $resourceGroupName -Location $location -RelayCount $relayCount -MediaCount $mediaCount
+          azPSVersion: 'latest'
+          
+      - name: Log Deployment Results
+        uses: azure/powershell@v1
+        with:
+          inlineScript: |
+            $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
+            Write-Host "Deployment to $resourceGroupName completed"
+            
+            # Get deployment status
+            $deployment = Get-AzResourceGroupDeployment -ResourceGroupName $resourceGroupName -Name "nostria-deployment-*" | Sort-Object Timestamp -Descending | Select-Object -First 1
+            Write-Host "Latest deployment status: $($deployment.ProvisioningState)"
+            
+            if ($deployment.ProvisioningState -eq "Succeeded") {
+              Write-Host "✅ Deployment succeeded"
+            } else {
+              Write-Host "❌ Deployment failed or is still in progress"
+              exit 1
+            }
+          azPSVersion: 'latest'

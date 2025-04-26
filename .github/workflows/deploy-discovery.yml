@@ -1,10 +1,11 @@
 name: Build and Deploy Discovery App
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'discovery/**'
+  workflow_dispatch:
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'discovery/**'
 
 jobs:
   build-and-deploy:

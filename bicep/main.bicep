@@ -65,39 +65,59 @@ module discoveryApp 'modules/container-app.bicep' = {
         name: 'CUSTOM_SETTING'
         value: 'value'
       }
+      {
+        name: 'Lmdb__MaxReaders'
+        value: 4096
+      }
+      {
+        name: 'Lmdb__SizeInMb'
+        value: 1024
+      }
+      {
+        name: 'Relay__Contact'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+      }
+      {
+        name: 'Relay__PostingPolicy'
+        value: 'https://discovery.nostria.com/posting-policy'
+      }
+      {
+        name: 'Relay__PrivacyPolicy'
+        value: 'https://discovery.nostria.com/privacy-policy'
+      }
     ]
   }
 }
 
-// Storage Account for About site
-module aboutStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-about-storage-deployment'
+// Storage Account for Website
+module websiteStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-website-storage-deployment'
   params: {
-    name: '${baseAppName}about'
+    name: '${baseAppName}website'
     location: location
   }
 }
 
-// Backup Storage for About site
-module aboutBackupStorage 'modules/backup.bicep' = {
-  name: '${baseAppName}-about-backup-deployment'
+// Backup Storage for Website
+module websiteBackupStorage 'modules/backup.bicep' = {
+  name: '${baseAppName}-website-backup-deployment'
   params: {
-    sourceStorageAccountName: aboutStorage.outputs.name
+    sourceStorageAccountName: websiteStorage.outputs.name
     location: location
   }
 }
 
-// About App (Single instance)
-module aboutApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-about-app-deployment'
+// Website App (Single instance)
+module websiteApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-website-app-deployment'
   params: {
-    name: 'about'
+    name: 'website'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-    customDomainName: 'about.nostria.app'
-    storageAccountName: aboutStorage.outputs.name
-    storageAccountKey: aboutStorage.outputs.key
+    customDomainName: 'www.nostria.app'
+    storageAccountName: websiteStorage.outputs.name
+    storageAccountKey: websiteStorage.outputs.key
     appSettings: []
   }
 }
@@ -136,70 +156,82 @@ module mainApp 'modules/container-app.bicep' = {
 }
 
 // Deploy multiple relay instances as needed
-module relayStorage 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-${toLower(relayNames[i])}-storage-deployment'
-  params: {
-    name: '${baseAppName}${toLower(relayNames[i])}'
-    location: location
+module relayStorage 'modules/storage-account.bicep' = [
+  for i in range(0, relayCount): {
+    name: '${baseAppName}-${toLower(relayNames[i])}-storage-deployment'
+    params: {
+      name: '${baseAppName}${toLower(relayNames[i])}'
+      location: location
+    }
   }
-}]
+]
 
-module relayBackupStorage 'modules/backup.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-${toLower(relayNames[i])}-backup-deployment'
-  params: {
-    sourceStorageAccountName: relayStorage[i].outputs.name
-    location: location
+module relayBackupStorage 'modules/backup.bicep' = [
+  for i in range(0, relayCount): {
+    name: '${baseAppName}-${toLower(relayNames[i])}-backup-deployment'
+    params: {
+      sourceStorageAccountName: relayStorage[i].outputs.name
+      location: location
+    }
   }
-}]
+]
 
-module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-${toLower(relayNames[i])}-app-deployment'
-  params: {
-    name: toLower(relayNames[i])
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-    customDomainName: '${toLower(relayNames[i])}.nostria.app'
-    storageAccountName: relayStorage[i].outputs.name
-    storageAccountKey: relayStorage[i].outputs.key
+module relayApps 'modules/container-app.bicep' = [
+  for i in range(0, relayCount): {
+    name: '${baseAppName}-${toLower(relayNames[i])}-app-deployment'
+    params: {
+      name: toLower(relayNames[i])
+      location: location
+      appServicePlanId: appServicePlan.outputs.id
+      containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
+      customDomainName: '${toLower(relayNames[i])}.nostria.app'
+      storageAccountName: relayStorage[i].outputs.name
+      storageAccountKey: relayStorage[i].outputs.key
+    }
   }
-}]
+]
 
 // Deploy multiple media instances as needed
-module mediaStorage 'modules/storage-account.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-${toLower(mediaNames[i])}-storage-deployment'
-  params: {
-    name: '${baseAppName}${toLower(mediaNames[i])}'
-    location: location
+module mediaStorage 'modules/storage-account.bicep' = [
+  for i in range(0, mediaCount): {
+    name: '${baseAppName}-${toLower(mediaNames[i])}-storage-deployment'
+    params: {
+      name: '${baseAppName}${toLower(mediaNames[i])}'
+      location: location
+    }
   }
-}]
+]
 
-module mediaBackupStorage 'modules/backup.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-${toLower(mediaNames[i])}-backup-deployment'
-  params: {
-    sourceStorageAccountName: mediaStorage[i].outputs.name
-    location: location
+module mediaBackupStorage 'modules/backup.bicep' = [
+  for i in range(0, mediaCount): {
+    name: '${baseAppName}-${toLower(mediaNames[i])}-backup-deployment'
+    params: {
+      sourceStorageAccountName: mediaStorage[i].outputs.name
+      location: location
+    }
   }
-}]
+]
 
-module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-${toLower(mediaNames[i])}-app-deployment'
-  params: {
-    name: toLower(mediaNames[i])
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
-    storageAccountName: mediaStorage[i].outputs.name
-    storageAccountKey: mediaStorage[i].outputs.key
+module mediaApps 'modules/container-app.bicep' = [
+  for i in range(0, mediaCount): {
+    name: '${baseAppName}-${toLower(mediaNames[i])}-app-deployment'
+    params: {
+      name: toLower(mediaNames[i])
+      location: location
+      appServicePlanId: appServicePlan.outputs.id
+      containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
+      customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+      storageAccountName: mediaStorage[i].outputs.name
+      storageAccountKey: mediaStorage[i].outputs.key
+    }
   }
-}]
+]
 
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
 output discoveryAppUrl string = 'https://${discoveryApp.outputs.hostname}'
-output aboutAppUrl string = 'https://${aboutApp.outputs.hostname}'
+output websiteAppUrl string = 'https://${aboutApp.outputs.hostname}'
 output mainAppUrl string = 'https://${mainApp.outputs.hostname}'
 output relayAppUrls array = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.nostria.app']
 output mediaAppUrls array = [for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}.nostria.app']

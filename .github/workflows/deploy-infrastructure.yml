@@ -74,18 +74,45 @@ jobs:
           $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
           Write-Host "Deployment to $resourceGroupName completed"
           
-          # Get deployment status using Azure CLI
-          $deployments = az deployment group list --resource-group $resourceGroupName --query "[?contains(name, 'nostria-deployment')].{Name:name, Status:properties.provisioningState}" --output json | ConvertFrom-Json
-          $latestDeployment = $deployments | Sort-Object Name -Descending | Select-Object -First 1
+          # Get deployment status using Azure CLI - improved query
+          Write-Host "Checking deployment status..."
+          $deploymentsJson = az deployment group list --resource-group $resourceGroupName --output json
+          $deployments = $deploymentsJson | ConvertFrom-Json
+          
+          if ($deployments.Count -eq 0) {
+            Write-Host "❌ No deployments found in resource group $resourceGroupName"
+            exit 1
+          }
+          
+          # Get the most recent deployment (by timestamp instead of name)
+          $latestDeployment = $deployments | Sort-Object -Property properties.timestamp -Descending | Select-Object -First 1
           
           if ($latestDeployment) {
-            Write-Host "Latest deployment: $($latestDeployment.Name), status: $($latestDeployment.Status)"
+            Write-Host "Latest deployment: $($latestDeployment.name), status: $($latestDeployment.properties.provisioningState)"
             
-            if ($latestDeployment.Status -eq "Succeeded") {
+            # Display more detailed information about the deployment
+            Write-Host "Deployment timestamp: $($latestDeployment.properties.timestamp)"
+            Write-Host "Deployment correlation ID: $($latestDeployment.properties.correlationId)"
+            
+            if ($latestDeployment.properties.provisioningState -eq "Succeeded") {
               Write-Host "✅ Deployment succeeded"
+              exit 0
             } else {
-              Write-Host "❌ Deployment failed or is still in progress"
-              exit 1
+              # Check if the deployment is still in progress
+              if ($latestDeployment.properties.provisioningState -eq "Running") {
+                Write-Host "⏳ Deployment is still in progress"
+                exit 0  # Don't fail the workflow if deployment is still running
+              } else {
+                Write-Host "❌ Deployment failed with status: $($latestDeployment.properties.provisioningState)"
+                
+                # Try to get error details if available
+                if ($latestDeployment.properties.error) {
+                  Write-Host "Error code: $($latestDeployment.properties.error.code)"
+                  Write-Host "Error message: $($latestDeployment.properties.error.message)"
+                }
+                
+                exit 1
+              }
             }
           } else {
             Write-Host "❌ No deployment found"

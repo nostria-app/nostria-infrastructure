@@ -54,7 +54,7 @@ resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if 
   name: customDomainName
   properties: {
     hostNameType: 'Verified'
-    sslState: 'SNI' // Changed from 'SniEnabled' to 'SNI'
+    sslState: 'SniEnabled'
   }
 }
 
@@ -82,9 +82,9 @@ resource hostnameBindingWithSsl 'Microsoft.Web/sites/hostNameBindings@2024-04-01
     sslState: 'SniEnabled'
     thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : null
   }
-  dependsOn: [
-    appServiceCertificate
-  ]
+  // dependsOn: [
+  //   appServiceCertificate
+  // ]
 }
 
 output id string = containerApp.id

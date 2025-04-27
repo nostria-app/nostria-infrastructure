@@ -79,7 +79,7 @@ resource hostnameBindingWithSsl 'Microsoft.Web/sites/hostNameBindings@2024-04-01
   name: customDomainName
   properties: {
     hostNameType: 'Verified'
-    sslState: 'SNI'
+    sslState: 'SniEnabled'
     thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : null
   }
   dependsOn: [

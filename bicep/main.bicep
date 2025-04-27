@@ -113,7 +113,7 @@ module websiteStorage 'modules/storage-account.bicep' = {
   params: {
     name: websiteStorageAccountName
     location: location
-    webAppPrincipalId: discoveryApp.outputs.webAppPrincipalId
+    webAppPrincipalId: websiteApp.outputs.webAppPrincipalId
   }
 }
 
@@ -148,7 +148,7 @@ module appStorage 'modules/storage-account.bicep' = {
   params: {
     name: appStorageAccountName
     location: location
-    webAppPrincipalId: discoveryApp.outputs.webAppPrincipalId
+    webAppPrincipalId: mainApp.outputs.webAppPrincipalId
   }
 }
 
@@ -160,97 +160,6 @@ module appBackupStorage 'modules/backup.bicep' = {
     location: location
   }
 }
-
-
-
-
-// resource relayStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = [
-//   for i in range(0, relayCount): {
-//     name: '${baseAppName}${toLower(relayNames[i])}'
-//   }
-// ]
-
-
-// module relayApps 'modules/container-app.bicep' = [
-//   for i in range(0, relayCount): {
-//     name: '${baseAppName}-${toLower(relayNames[i])}-app-deployment'
-//     params: {
-//       name: toLower(relayNames[i])
-//       location: location
-//       appServicePlanId: appServicePlan.outputs.id
-//       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-//       customDomainName: '${toLower(relayNames[i])}.nostria.app'
-//       storageAccountName: relayStorage[i].outputs.name
-
-//       // storageAccountKey: relayStorageInstance[i].listKeys().keys[0].value
-//     }
-//   }
-// ]
-
-// // Deploy multiple relay instances as needed
-// module relayStorage 'modules/storage-account.bicep' = [
-//   for i in range(0, relayCount): {
-//     name: '${baseAppName}-${toLower(relayNames[i])}-storage-deployment'
-//     params: {
-//       name: '${baseAppName}${toLower(relayNames[i])}'
-//       location: location
-//       webAppPrincipalId: relayApps.outputs.webAppPrincipalId
-//     }
-//   }
-// ]
-
-// module relayBackupStorage 'modules/backup.bicep' = [
-//   for i in range(0, relayCount): {
-//     name: '${baseAppName}-${toLower(relayNames[i])}-backup-deployment'
-//     params: {
-//       sourceStorageAccountName: relayStorage[i].outputs.name
-//       location: location
-//     }
-//   }
-// ]
-
-
-// Deploy multiple media instances as needed
-// module mediaStorage 'modules/storage-account.bicep' = [
-//   for i in range(0, mediaCount): {
-//     name: '${baseAppName}-${toLower(mediaNames[i])}-storage-deployment'
-//     params: {
-//       name: '${baseAppName}${toLower(mediaNames[i])}'
-//       location: location
-//     }
-//   }
-// ]
-
-// resource mediaStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = [
-//   for i in range(0, mediaCount): {
-//     name: '${baseAppName}${toLower(mediaNames[i])}'
-//   }
-// ]
-
-// module mediaBackupStorage 'modules/backup.bicep' = [
-//   for i in range(0, mediaCount): {
-//     name: '${baseAppName}-${toLower(mediaNames[i])}-backup-deployment'
-//     params: {
-//       sourceStorageAccountName: mediaStorage[i].outputs.name
-//       location: location
-//     }
-//   }
-// ]
-
-// module mediaApps 'modules/container-app.bicep' = [
-//   for i in range(0, mediaCount): {
-//     name: '${baseAppName}-${toLower(mediaNames[i])}-app-deployment'
-//     params: {
-//       name: toLower(mediaNames[i])
-//       location: location
-//       appServicePlanId: appServicePlan.outputs.id
-//       containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-//       customDomainName: '${toLower(mediaNames[i])}.nostria.app'
-//       storageAccountName: mediaStorage[i].outputs.name
-//       storageAccountKey: mediaStorageInstance[i].listKeys().keys[0].value
-//     }
-//   }
-// ]
 
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id

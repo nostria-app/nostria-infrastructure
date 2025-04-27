@@ -8,7 +8,7 @@ param storageAccountName string
 param mountPath string = '/data'
 param shareName string = 'data'
 
-resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
+resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   name: name
   location: location
   identity: {
@@ -25,6 +25,14 @@ resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
           value: 'true'
         }
+        {
+          name: 'AZURE_STORAGE_AUTHENTICATION_TYPE'
+          value: 'ManagedIdentity'
+        }
+        {
+          name: 'AZURE_STORAGE_ACCOUNT_NAME'
+          value: storageAccountName
+        }
       ])
       linuxFxVersion: 'DOCKER|${containerImage}'
       azureStorageAccounts: {
@@ -33,6 +41,7 @@ resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
           accountName: storageAccountName
           mountPath: mountPath
           shareName: shareName
+          accessKey: '' // No access key - we use managed identity instead
         }
       }
     }

@@ -48,19 +48,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-// Initial hostname binding without SSL - used for verification
-resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
-  parent: containerApp
-  name: customDomainName // Use the plain custom domain (e.g., discovery.nostria.app)
-  properties: {
-    hostNameType: 'Verified'
-    sslState: 'Disabled'  // Start without SSL
-    siteName: name
-  }
-}
-
 // Create App Service managed certificate if custom domain is provided
-// Must be created AFTER the hostname binding
 resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!empty(customDomainName)) {
   name: '${name}-${replace(customDomainName, '.', '-')}-cert'
   location: location
@@ -69,22 +57,19 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!em
     canonicalName: customDomainName
     hostNames: [customDomainName]
   }
-  dependsOn: [
-    hostnameBinding // Explicitly depend on hostname binding
-  ]
 }
 
-// Update hostname binding with certificate (using patch operation)
-resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
+// Hostname binding for custom domain, updated for SSL if certificate is available
+resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
-  name: customDomainName // Use the plain custom domain for SSL binding
+  name: customDomainName
   properties: {
+    hostNameType: 'Verified'
+    sslState: !empty(appServiceCertificate.properties.thumbprint) ? 'SniEnabled' : 'Disabled'
+    thumbprint: !empty(appServiceCertificate.properties.thumbprint) ? appServiceCertificate.properties.thumbprint : ''
+    siteName: name
     azureResourceType: 'Website'
     customHostNameDnsRecordType: 'CName'
-    hostNameType: 'Verified'
-    sslState: 'SniEnabled'
-    thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : ''
-    siteName: name
   }
 }
 

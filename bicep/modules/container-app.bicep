@@ -77,7 +77,7 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!em
 // Update hostname binding with certificate (using patch operation)
 resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
-  name: customDomainName
+  name: '${customDomainName}-ssl' // Modified name to avoid conflict
   properties: {
     azureResourceType: 'Website'
     customHostNameDnsRecordType: 'CName'
@@ -90,22 +90,6 @@ resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!emp
     hostnameBinding
   ]
 }
-// resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
-//   parent: containerApp
-//   name: customDomainName
-//   // name: '${customDomainName}.ssl'  // Different name to avoid duplication
-//   properties: {
-//     azureResourceType: 'Website'
-//     customHostNameDnsRecordType: 'CName'
-//     hostNameType: 'Verified'
-//     sslState: 'SniEnabled'
-//     thumbprint: appServiceCertificate.properties.thumbprint
-//     siteName: name
-//   }
-//   dependsOn: [
-//     hostnameBinding
-//   ]
-// }
 
 output id string = containerApp.id
 output name string = containerApp.name

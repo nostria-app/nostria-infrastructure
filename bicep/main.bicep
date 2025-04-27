@@ -40,9 +40,8 @@ module discoveryStorage 'modules/storage-account.bicep' = {
   }
 }
 
-resource discoveryStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+resource discoveryStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: '${baseAppName}discovery'
-  // scope: resourceGroup(subscriptionId, kvResourceGroup )
 }
 
 // Backup Storage for Discovery
@@ -103,7 +102,7 @@ module websiteStorage 'modules/storage-account.bicep' = {
   }
 }
 
-resource websiteStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+resource websiteStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: '${baseAppName}website'
   // scope: resourceGroup(subscriptionId, kvResourceGroup )
 }
@@ -141,7 +140,7 @@ module appStorage 'modules/storage-account.bicep' = {
   }
 }
 
-resource appStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
+resource appStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: '${baseAppName}app'
   // scope: resourceGroup(subscriptionId, kvResourceGroup )
 }
@@ -181,7 +180,7 @@ module relayStorage 'modules/storage-account.bicep' = [
   }
 ]
 
-resource relayStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = [
+resource relayStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = [
   for i in range(0, relayCount): {
     name: '${baseAppName}${toLower(relayNames[i])}'
   }
@@ -223,8 +222,8 @@ module mediaStorage 'modules/storage-account.bicep' = [
   }
 ]
 
-resource mediaStorageInstance 'Microsoft.Storage/storageAccounts@2024-01-01' existing = [
-  for i in range(0, relayCount): {
+resource mediaStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01' existing = [
+  for i in range(0, mediaCount): {
     name: '${baseAppName}${toLower(mediaNames[i])}'
   }
 ]

@@ -3,7 +3,7 @@ param location string = resourceGroup().location
 param sku string = 'Standard_LRS'
 param kind string = 'StorageV2'
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: name
   location: location
   sku: {
@@ -17,13 +17,13 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
   }
 }
 
-resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2024-01-01' = {
+resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = {
   parent: storageAccount
   name: 'default'
 }
 
 // Create a default share for the storage account
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2024-01-01' = {
+resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
   parent: fileServices
   name: 'data'
   properties: {

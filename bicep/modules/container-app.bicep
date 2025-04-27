@@ -10,7 +10,7 @@ param storageAccountKey string
 param mountPath string = '/data'
 param shareName string = 'data'
 
-resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
+resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
   name: name
   location: location
   kind: 'app,linux,container'

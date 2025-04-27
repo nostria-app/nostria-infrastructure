@@ -5,9 +5,8 @@ param containerImage string
 param customDomainName string = ''
 param appSettings array = []
 param storageAccountName string
-param mountPath string = '/data'
-param shareName string = 'data'
 
+// Main container app resource
 resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   name: name
   location: location
@@ -35,25 +34,39 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       ])
       linuxFxVersion: 'DOCKER|${containerImage}'
+      // Storage mount is commented out but can be enabled if needed
       // azureStorageAccounts: {
       //   data: {
       //     type: 'AzureFiles'
       //     accountName: storageAccountName
-      //     mountPath: mountPath
-      //     shareName: shareName
+      //     mountPath: '/data'
+      //     shareName: 'data'
       //     accessKey: '' // No access key - we use managed identity instead
       //   }
       // }
     }
   }
-  
-  // Add custom hostname binding if provided
-  resource hostnameBinding 'hostNameBindings' = if (!empty(customDomainName)) {
-    name: customDomainName
-    properties: {
-      siteName: name
-      hostNameType: 'Verified'
-    }
+}
+
+// Create App Service managed certificate if custom domain is provided
+resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!empty(customDomainName)) {
+  name: '${name}-${replace(customDomainName, '.', '-')}-cert'
+  location: location
+  properties: {
+    serverFarmId: appServicePlanId
+    canonicalName: customDomainName
+    hostNames: [customDomainName]
+  }
+}
+
+// Add custom hostname binding if provided
+resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
+  parent: containerApp
+  name: customDomainName
+  properties: {
+    hostNameType: 'Verified'
+    sslState: 'SniEnabled'  // Enable SNI SSL
+    thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : null
   }
 }
 

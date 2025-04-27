@@ -48,13 +48,14 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-// Add custom hostname binding if provided
+// Initial hostname binding without SSL - used for verification
 resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
   name: customDomainName
   properties: {
     hostNameType: 'Verified'
-    sslState: 'SniEnabled'
+    sslState: 'Disabled'  // Start without SSL
+    siteName: name
   }
 }
 
@@ -73,18 +74,17 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!em
   ]
 }
 
-// Update hostname binding with certificate thumbprint
-resource hostnameBindingWithSsl 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
+// Update hostname binding with certificate (using patch operation)
+resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
-  name: customDomainName
+  name: '${customDomainName}.ssl'  // Different name to avoid duplication
   properties: {
-    hostNameType: 'Verified'
     sslState: 'SniEnabled'
-    thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : null
+    thumbprint: appServiceCertificate.properties.thumbprint
   }
-  // dependsOn: [
-  //   appServiceCertificate
-  // ]
+  dependsOn: [
+    hostnameBinding
+  ]
 }
 
 output id string = containerApp.id

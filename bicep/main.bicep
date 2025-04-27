@@ -48,7 +48,7 @@ resource discoveryStorageInstance 'Microsoft.Storage/storageAccounts@2023-01-01'
 module discoveryBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-discovery-backup-deployment'
   params: {
-    sourceStorageAccountName: discoveryStorage.name
+    sourceStorageAccountName: discoveryStorage.outputs.name
     location: location
   }
 }

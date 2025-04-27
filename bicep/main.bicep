@@ -135,7 +135,7 @@ module mainApp 'modules/container-app.bicep' = {
     name: 'nostria-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
+    containerImage: 'ghcr.io/nostria-app/nostria:b4e68ee403f5b2909de329633bd473f891493b1d'
     customDomainName: 'nostria.app'
     storageAccountName: appStorageAccountName
     appSettings: []

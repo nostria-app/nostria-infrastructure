@@ -100,6 +100,13 @@ This repository includes GitHub Actions workflows for automating the deployment 
 - Implementing Key Vault for secrets management
 - Setting up traffic manager for load balancing
 
+
+## Notes
+
+- Web Apps have a principal with access to the storage account.
+- Web apps does not have access to the backup storage account.
+- This ensures that hacked web apps cannot access the backup storage account.
+
 ## License
 
 See [LICENSE](./LICENSE) for details.

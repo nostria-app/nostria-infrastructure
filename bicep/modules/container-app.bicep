@@ -5,19 +5,21 @@ param containerImage string
 param customDomainName string = ''
 param appSettings array = []
 param storageAccountName string
-@secure()
-param storageAccountKey string
 param mountPath string = '/data'
 param shareName string = 'data'
 
 resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
   name: name
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   kind: 'app,linux,container'
   properties: {
     serverFarmId: appServicePlanId
     httpsOnly: true
     siteConfig: {
+      http20Enabled: true
       appSettings: concat(appSettings, [
         {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
@@ -29,7 +31,6 @@ resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
         data: {
           type: 'AzureFiles'
           accountName: storageAccountName
-          accessKey: storageAccountKey
           mountPath: mountPath
           shareName: shareName
         }
@@ -50,3 +51,4 @@ resource containerApp 'Microsoft.Web/sites@2022-03-01' = {
 output id string = containerApp.id
 output name string = containerApp.name
 output hostname string = containerApp.properties.defaultHostName
+output webAppPrincipalId string = containerApp.identity.principalId

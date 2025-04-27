@@ -1,6 +1,6 @@
 param sourceStorageAccountName string
 param location string = resourceGroup().location
-param backupStorageAccountSuffix string = 'bkp'
+param backupStorageAccountSuffix string = 'bk'
 param sku string = 'Standard_LRS'
 
 // Create a backup storage account

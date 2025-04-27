@@ -130,6 +130,7 @@ module websiteAppCert 'modules/container-app-certificate.bicep' = {
     customDomainName: 'www.nostria.app'
     containerAppId: websiteApp.outputs.id
   }
+  dependsOn: [websiteApp]
 }
 
 // Storage Account for Website

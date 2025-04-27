@@ -66,3 +66,4 @@ output id string = containerApp.id
 output name string = containerApp.name
 output hostname string = containerApp.properties.defaultHostName
 output webAppPrincipalId string = containerApp.identity.principalId
+output hostnameBindingResourceId string = !empty(customDomainName) ? hostnameBinding.id : ''

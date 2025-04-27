@@ -35,15 +35,15 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       ])
       linuxFxVersion: 'DOCKER|${containerImage}'
-      azureStorageAccounts: {
-        data: {
-          type: 'AzureFiles'
-          accountName: storageAccountName
-          mountPath: mountPath
-          shareName: shareName
-          accessKey: '' // No access key - we use managed identity instead
-        }
-      }
+      // azureStorageAccounts: {
+      //   data: {
+      //     type: 'AzureFiles'
+      //     accountName: storageAccountName
+      //     mountPath: mountPath
+      //     shareName: shareName
+      //     accessKey: '' // No access key - we use managed identity instead
+      //   }
+      // }
     }
   }
   

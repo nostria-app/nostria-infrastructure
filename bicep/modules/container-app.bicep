@@ -48,25 +48,14 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
-// Create App Service managed certificate if custom domain is provided
-resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!empty(customDomainName)) {
-  name: '${name}-${replace(customDomainName, '.', '-')}-cert'
-  location: location
-  properties: {
-    serverFarmId: appServicePlanId
-    canonicalName: customDomainName
-    hostNames: [customDomainName]
-  }
-}
-
-// Hostname binding for custom domain, updated for SSL if certificate is available
+// Hostname binding for custom domain
 resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
   name: customDomainName
   properties: {
     hostNameType: 'Verified'
-    sslState: !empty(appServiceCertificate.properties.thumbprint) ? 'SniEnabled' : 'Disabled'
-    thumbprint: !empty(appServiceCertificate.properties.thumbprint) ? appServiceCertificate.properties.thumbprint : ''
+    sslState: 'Disabled'
+    thumbprint: ''
     siteName: name
     azureResourceType: 'Website'
     customHostNameDnsRecordType: 'CName'

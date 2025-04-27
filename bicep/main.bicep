@@ -72,6 +72,19 @@ module discoveryApp 'modules/container-app.bicep' = {
   }
 }
 
+// Certificate for Discovery App
+module discoveryAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-discovery-app-cert-deployment'
+  params: {
+    name: 'nostria-discovery'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'discovery.nostria.app'
+    containerAppId: discoveryApp.outputs.id
+  }
+  dependsOn: [discoveryApp]
+}
+
 // Storage Account for Discovery
 module discoveryStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-discovery-storage-deployment'
@@ -104,6 +117,18 @@ module websiteApp 'modules/container-app.bicep' = {
     customDomainName: 'www.nostria.app'
     storageAccountName: websiteStorageAccountName
     appSettings: []
+  }
+}
+
+// Certificate for Website App
+module websiteAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-website-app-cert-deployment'
+  params: {
+    name: 'nostria-website'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'www.nostria.app'
+    containerAppId: websiteApp.outputs.id
   }
 }
 
@@ -140,6 +165,19 @@ module mainApp 'modules/container-app.bicep' = {
     storageAccountName: appStorageAccountName
     appSettings: []
   }
+}
+
+// Certificate for Main App
+module mainAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-main-app-cert-deployment'
+  params: {
+    name: 'nostria-app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'nostria.app'
+    containerAppId: mainApp.outputs.id
+  }
+  dependsOn: [mainApp]
 }
 
 // Storage Account for Main app site

@@ -7,19 +7,19 @@ param mediaCount int = 1
 
 // Server name arrays
 var relayNames = [
-  'Ribbo', 'Rilo', 'Riffu', 'Rixi', 'Rova', 'Rymba', 'Rorbo', 'Rukku', 'Razzle', 'Rilby'
-  'Rambu', 'Rizzo', 'Rilka', 'Rulo', 'Ruvvi', 'Rinoo', 'Ribbly', 'Rasko', 'Roffo', 'Rilza'
-  'Rmodo', 'Rembo', 'Rinzo', 'Ruppi', 'Rozi', 'Rucco', 'Rilma', 'Roppi', 'Ruvzo', 'Rilku'
-  'Rirby', 'Riso', 'Ruzz', 'Roppo', 'Ruzi', 'Rilvo', 'Rordy', 'Ramzy', 'Rozzo', 'Rimp'
-  'Rluno', 'Rippo', 'Rilno', 'Rikko', 'Rufko', 'Reppo', 'Romby', 'Rilzo', 'Rakku', 'Rumpo', 'Rifbo'
+  'Ribo', 'Rilo', 'Rifu', 'Rixi', 'Rova', 'Ryma', 'Robo', 'Ruku', 'Raze', 'Ruby'
+  'Ramu', 'Rizo', 'Rika', 'Rulo', 'Ruvi', 'Rino', 'Riby', 'Rask', 'Rofo', 'Rilz'
+  'Rudo', 'Remo', 'Rinz', 'Rupi', 'Rozi', 'Ruco', 'Rima', 'Ropi', 'Ruzo', 'Riku'
+  'Riry', 'Riso', 'Ruzz', 'Ropo', 'Ruzi', 'Rilv', 'Rork', 'Ramy', 'Rozo', 'Rimp'
+  'Runo', 'Ripp', 'Rino', 'Riko', 'Rufo', 'Repo', 'Romy', 'Rilz', 'Raku', 'Rumo'
 ]
 
 var mediaNames = [
-  'Mibbo', 'Milo', 'Miffu', 'Mixi', 'Mova', 'Mymba', 'Morbo', 'Mukku', 'Mazzle', 'Milby'
-  'Mambu', 'Mizzo', 'Milka', 'Mulo', 'Muvvi', 'Minoo', 'Mibbly', 'Masko', 'Moffo', 'Milza'
-  'Mmodo', 'Membo', 'Minzo', 'Muppi', 'Mozi', 'Mucco', 'Milma', 'Moppi', 'Muvzo', 'Milku'
-  'Mirby', 'Miso', 'Muzz', 'Moppo', 'Muzi', 'Milvo', 'Mordy', 'Mamzy', 'Mozzo', 'Mimp'
-  'Mluno', 'Mippo', 'Milno', 'Mikko', 'Mufko', 'Meppo', 'Momby', 'Milzo', 'Makku', 'Mumpo', 'Mifbo'
+  'Mibo', 'Milo', 'Mifu', 'Mixi', 'Mova', 'Myma', 'Mobo', 'Muku', 'Maze', 'Miby'
+  'Mamu', 'Mizo', 'Mika', 'Mulo', 'Muvi', 'Mino', 'Miby', 'Mask', 'Mofo', 'Milz'
+  'Mudo', 'Memo', 'Minz', 'Mupi', 'Mozi', 'Muco', 'Mima', 'Mopi', 'Muzo', 'Miku'
+  'Miry', 'Miso', 'Muzz', 'Mopo', 'Muzi', 'Milv', 'Mork', 'Mamy', 'Mozo', 'Mimp'
+  'Muno', 'Mipp', 'Mino', 'Miko', 'Mufo', 'Mepo', 'Momy', 'Milz', 'Maku', 'Mumo'
 ]
 
 // Deploy the main App Service Plan for all container apps

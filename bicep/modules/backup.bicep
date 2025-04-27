@@ -4,7 +4,7 @@ param backupStorageAccountSuffix string = 'bkp'
 param sku string = 'Standard_LRS'
 
 // Create a backup storage account
-resource backupStorageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
+resource backupStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: '${sourceStorageAccountName}${backupStorageAccountSuffix}'
   location: location
   sku: {
@@ -18,13 +18,13 @@ resource backupStorageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' = {
   }
 }
 
-resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2024-01-01' = {
+resource fileServices 'Microsoft.Storage/storageAccounts/fileServices@2023-01-01' = {
   parent: backupStorageAccount
   name: 'default'
 }
 
 // Create a backup share in the backup storage account
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2024-01-01' = {
+resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
   parent: fileServices
   name: 'backup'
   properties: {

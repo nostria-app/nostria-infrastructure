@@ -51,7 +51,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
 // Initial hostname binding without SSL - used for verification
 resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
-  name: customDomainName
+  name: customDomainName // Use the plain custom domain (e.g., discovery.nostria.app)
   properties: {
     hostNameType: 'Verified'
     sslState: 'Disabled'  // Start without SSL
@@ -77,7 +77,7 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!em
 // Update hostname binding with certificate (using patch operation)
 resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
-  name: '${customDomainName}-ssl' // Modified name to avoid conflict
+  name: customDomainName // Use the plain custom domain for SSL binding
   properties: {
     azureResourceType: 'Website'
     customHostNameDnsRecordType: 'CName'
@@ -86,9 +86,6 @@ resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!emp
     thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : ''
     siteName: name
   }
-  dependsOn: [
-    hostnameBinding
-  ]
 }
 
 output id string = containerApp.id

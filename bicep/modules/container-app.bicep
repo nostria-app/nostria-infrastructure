@@ -48,7 +48,18 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
+// Add custom hostname binding if provided
+resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
+  parent: containerApp
+  name: customDomainName
+  properties: {
+    hostNameType: 'Verified'
+    sslState: 'SNI' // Changed from 'SniEnabled' to 'SNI'
+  }
+}
+
 // Create App Service managed certificate if custom domain is provided
+// Must be created AFTER the hostname binding
 resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!empty(customDomainName)) {
   name: '${name}-${replace(customDomainName, '.', '-')}-cert'
   location: location
@@ -57,17 +68,23 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = if (!em
     canonicalName: customDomainName
     hostNames: [customDomainName]
   }
+  dependsOn: [
+    hostnameBinding // Explicitly depend on hostname binding
+  ]
 }
 
-// Add custom hostname binding if provided
-resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
+// Update hostname binding with certificate thumbprint
+resource hostnameBindingWithSsl 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp
   name: customDomainName
   properties: {
     hostNameType: 'Verified'
-    sslState: 'SniEnabled'  // Enable SNI SSL
+    sslState: 'SNI'
     thumbprint: !empty(customDomainName) ? appServiceCertificate.properties.thumbprint : null
   }
+  dependsOn: [
+    appServiceCertificate
+  ]
 }
 
 output id string = containerApp.id

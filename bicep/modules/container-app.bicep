@@ -19,6 +19,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
     httpsOnly: true
     siteConfig: {
       http20Enabled: true
+      alwaysOn: true
       appSettings: concat(appSettings, [
         {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'

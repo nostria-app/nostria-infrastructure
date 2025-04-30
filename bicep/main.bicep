@@ -200,6 +200,46 @@ module appBackupStorage 'modules/backup.bicep' = {
   }
 }
 
+var metadataStorageAccountName = '${baseAppName}metadata'
+
+// Metadata App (Single instance)
+module metadataApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-metadata-app-deployment'
+  params: {
+    name: 'nostria-metadata'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-metadata:latest'
+    customDomainName: 'metadata.nostria.app'
+    storageAccountName: metadataStorageAccountName
+    appSettings: []
+  }
+}
+
+// Certificate for Metadata App
+module metadataAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-metadata-app-cert-deployment'
+  params: {
+    name: 'nostria-metadata'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'metadata.nostria.app'
+    containerAppId: websiteApp.outputs.id
+  }
+  dependsOn: [metadataApp]
+}
+
+// Storage Account for Website
+module metadataStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-metadata-storage-deployment'
+  params: {
+    name: metadataStorageAccountName
+    location: location
+    webAppPrincipalId: metadataApp.outputs.webAppPrincipalId
+  }
+}
+
+
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name

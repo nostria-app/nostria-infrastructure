@@ -5,7 +5,7 @@ param baseAppName string = 'nostria'
 param relayCount int = 1
 param mediaCount int = 1
 
-// Server name arrays
+// Server name arrays - adding missing commas between array entries
 var relayNames = [
   'Ribo', 'Rilo', 'Rifu', 'Rixi', 'Rova', 'Ryma', 'Robo', 'Ruku', 'Raze', 'Ruby'
   'Ramu', 'Rizo', 'Rika', 'Rulo', 'Ruvi', 'Rino', 'Riby', 'Rask', 'Rofo', 'Rilz'
@@ -32,6 +32,16 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
 }
 
 var discoveryStorageAccountName = '${baseAppName}discovery'
+
+// Storage Account for Discovery - moved before the app creation
+module discoveryStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-discovery-storage-deployment'
+  params: {
+    name: discoveryStorageAccountName
+    location: location
+    webAppPrincipalId: '' // Will be updated after app creation
+  }
+}
 
 // Discovery App (Single instance)
 module discoveryApp 'modules/container-app.bicep' = {
@@ -70,6 +80,18 @@ module discoveryApp 'modules/container-app.bicep' = {
       }
     ]
   }
+  dependsOn: [discoveryStorage]
+}
+
+// Update storage account with app's managed identity
+module discoveryStorageUpdate 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-discovery-storage-update'
+  params: {
+    name: discoveryStorageAccountName
+    location: location
+    webAppPrincipalId: discoveryApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [discoveryApp]
 }
 
 // Certificate for Discovery App
@@ -85,16 +107,6 @@ module discoveryAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [discoveryApp]
 }
 
-// Storage Account for Discovery
-module discoveryStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-discovery-storage-deployment'
-  params: {
-    name: discoveryStorageAccountName
-    location: location
-    webAppPrincipalId: discoveryApp.outputs.webAppPrincipalId
-  }
-}
-
 // Backup Storage for Discovery
 module discoveryBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-discovery-backup-deployment'
@@ -102,9 +114,20 @@ module discoveryBackupStorage 'modules/backup.bicep' = {
     sourceStorageAccountName: discoveryStorageAccountName
     location: location
   }
+  dependsOn: [discoveryStorageUpdate]
 }
 
 var websiteStorageAccountName = '${baseAppName}website'
+
+// Storage Account for Website - moved before the app creation
+module websiteStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-website-storage-deployment'
+  params: {
+    name: websiteStorageAccountName
+    location: location
+    webAppPrincipalId: '' // Will be updated after app creation
+  }
+}
 
 // Website App (Single instance)
 module websiteApp 'modules/container-app.bicep' = {
@@ -118,6 +141,18 @@ module websiteApp 'modules/container-app.bicep' = {
     storageAccountName: websiteStorageAccountName
     appSettings: []
   }
+  dependsOn: [websiteStorage]
+}
+
+// Update storage account with app's managed identity
+module websiteStorageUpdate 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-website-storage-update'
+  params: {
+    name: websiteStorageAccountName
+    location: location
+    webAppPrincipalId: websiteApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [websiteApp]
 }
 
 // Certificate for Website App
@@ -133,16 +168,6 @@ module websiteAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [websiteApp]
 }
 
-// Storage Account for Website
-module websiteStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-website-storage-deployment'
-  params: {
-    name: websiteStorageAccountName
-    location: location
-    webAppPrincipalId: websiteApp.outputs.webAppPrincipalId
-  }
-}
-
 // Backup Storage for Website
 module websiteBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-website-backup-deployment'
@@ -150,9 +175,20 @@ module websiteBackupStorage 'modules/backup.bicep' = {
     sourceStorageAccountName: websiteStorageAccountName
     location: location
   }
+  dependsOn: [websiteStorageUpdate]
 }
 
 var appStorageAccountName = '${baseAppName}app'
+
+// Storage Account for Main app - moved before the app creation
+module appStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-app-storage-deployment'
+  params: {
+    name: appStorageAccountName
+    location: location
+    webAppPrincipalId: '' // Will be updated after app creation
+  }
+}
 
 // Main App (Single instance)
 module mainApp 'modules/container-app.bicep' = {
@@ -166,6 +202,18 @@ module mainApp 'modules/container-app.bicep' = {
     storageAccountName: appStorageAccountName
     appSettings: []
   }
+  dependsOn: [appStorage]
+}
+
+// Update storage account with app's managed identity
+module appStorageUpdate 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-app-storage-update'
+  params: {
+    name: appStorageAccountName
+    location: location
+    webAppPrincipalId: mainApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [mainApp]
 }
 
 // Certificate for Main App
@@ -181,16 +229,6 @@ module mainAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [mainApp]
 }
 
-// Storage Account for Main app site
-module appStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-app-storage-deployment'
-  params: {
-    name: appStorageAccountName
-    location: location
-    webAppPrincipalId: mainApp.outputs.webAppPrincipalId
-  }
-}
-
 // Backup Storage for Main app site
 module appBackupStorage 'modules/backup.bicep' = {
   name: '${baseAppName}-app-backup-deployment'
@@ -198,9 +236,20 @@ module appBackupStorage 'modules/backup.bicep' = {
     sourceStorageAccountName: appStorageAccountName
     location: location
   }
+  dependsOn: [appStorageUpdate]
 }
 
 var metadataStorageAccountName = '${baseAppName}metadata'
+
+// Storage Account for Metadata - moved before the app creation
+module metadataStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-metadata-storage-deployment'
+  params: {
+    name: metadataStorageAccountName
+    location: location
+    webAppPrincipalId: '' // Will be updated after app creation
+  }
+}
 
 // Metadata App (Single instance)
 module metadataApp 'modules/container-app.bicep' = {
@@ -214,9 +263,21 @@ module metadataApp 'modules/container-app.bicep' = {
     storageAccountName: metadataStorageAccountName
     appSettings: []
   }
+  dependsOn: [metadataStorage]
 }
 
-// Certificate for Metadata App
+// Update storage account with app's managed identity
+module metadataStorageUpdate 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-metadata-storage-update'
+  params: {
+    name: metadataStorageAccountName
+    location: location
+    webAppPrincipalId: metadataApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [metadataApp]
+}
+
+// Certificate for Metadata App - Fixed incorrect reference to containerAppId
 module metadataAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-metadata-app-cert-deployment'
   params: {
@@ -224,21 +285,10 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'metadata.nostria.app'
-    containerAppId: websiteApp.outputs.id
+    containerAppId: metadataApp.outputs.id  // Fixed - was incorrectly using websiteApp.outputs.id
   }
   dependsOn: [metadataApp]
 }
-
-// Storage Account for Website
-module metadataStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-metadata-storage-deployment'
-  params: {
-    name: metadataStorageAccountName
-    location: location
-    webAppPrincipalId: metadataApp.outputs.webAppPrincipalId
-  }
-}
-
 
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id

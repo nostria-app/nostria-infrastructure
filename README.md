@@ -61,6 +61,11 @@ To add more relay or media instances, simply update the count parameters:
 
 ## Backup and Restore
 
+```powershell
+./scripts/backup.ps1 -WebAppName "nostria-discovery"
+./scripts/restore.ps1 -WebAppName "nostria-discovery"
+```
+
 ### Backing Up a Storage Account
 
 ```powershell

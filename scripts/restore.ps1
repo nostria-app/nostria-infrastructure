@@ -87,22 +87,42 @@ $backupFolderPath = $WebAppName
 Write-Host "Checking for backups under path: $backupFolderPath" -ForegroundColor Yellow
 
 try {
-    # Check if the folder exists in the backup share
+    # First, list all directories in the share to see what's available
+    Write-Host "Listing all directories in the backup share to verify structure..." -ForegroundColor Yellow
     if ($useManagedIdentity) {
-        # Use managed identity authentication
-        $folderExists = (az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --auth-mode login --name $backupFolderPath --query "exists" -o tsv 2>$null)
+        $allDirectories = az storage directory list --share-name $backupShareName --account-name $BackupStorageName --auth-mode login -o json | ConvertFrom-Json
     } else {
-        # Use storage key authentication
-        $folderExists = (az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name $backupFolderPath --query "exists" -o tsv 2>$null)
+        $allDirectories = az storage directory list --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey -o json | ConvertFrom-Json
     }
     
+    Write-Host "Found the following directories in the backup share:" -ForegroundColor Gray
+    foreach ($dir in $allDirectories) {
+        Write-Host "  $($dir.name)" -ForegroundColor Gray
+    }
+
+    # Now check specifically for our target folder
+    if ($useManagedIdentity) {
+        # Use managed identity authentication
+        $folderExistsCommand = "az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --auth-mode login --name `"$backupFolderPath`" --query exists -o tsv"
+        Write-Host "Running command: $folderExistsCommand" -ForegroundColor Gray
+        $folderExists = (Invoke-Expression $folderExistsCommand 2>$null)
+    } else {
+        # Use storage key authentication
+        $folderExistsCommand = "az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name `"$backupFolderPath`" --query exists -o tsv"
+        Write-Host "Running command: $folderExistsCommand" -ForegroundColor Gray
+        $folderExists = (Invoke-Expression $folderExistsCommand 2>$null)
+    }
+    
+    Write-Host "Directory exists check result: $folderExists (Exit code: $LASTEXITCODE)" -ForegroundColor Gray
+    
     if ($folderExists -eq "false" -or $LASTEXITCODE -ne 0) {
-        throw "No backup folder found for $WebAppName"
+        throw "No backup folder found for $WebAppName at path $backupFolderPath"
     }
     
     Write-Host "Found backup folder for $WebAppName" -ForegroundColor Green
 } catch {
     Write-Host "Error retrieving backup folder: $_" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor Red
     exit 1
 }
 
@@ -114,54 +134,65 @@ Write-Host "Using temp directory: $tempDir" -ForegroundColor Gray
 try {
     # Download backup files from storage
     Write-Host "Downloading files from backup..." -ForegroundColor Yellow
-    
-    # List all files in the backup folder recursively
-    if ($useManagedIdentity) {
-        $filesJson = (az storage file list -s $backupShareName --account-name $BackupStorageName --auth-mode login --path $backupFolderPath -o json)
-    } else {
-        $filesJson = (az storage file list -s $backupShareName --account-name $BackupStorageName --account-key $backupKey --path $backupFolderPath -o json)
-    }
-    
-    $files = $filesJson | ConvertFrom-Json
-    
-    if ($files.Count -eq 0) {
-        Write-Host "No backup files found for $WebAppName. Nothing to restore." -ForegroundColor Yellow
-        exit 0
-    }
-    
-    Write-Host "Found $($files.Count) files to restore." -ForegroundColor Green
-    
-    # Download each file
-    foreach ($file in $files) {
-        if ($file.type -eq "file") {
-            # Get relative path removing the backup folder prefix
-            $relativePath = $file.name.Substring($backupFolderPath.Length + 1)
-            $localFilePath = Join-Path $tempDir $relativePath
-            
-            # Create parent directory if it doesn't exist
-            $parentDir = Split-Path -Path $localFilePath -Parent
-            if (!(Test-Path $parentDir)) {
-                New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
-            }
-            
-            # Download the file
-            Write-Host "  Downloading: $relativePath" -ForegroundColor Gray
-            try {
-                if ($useManagedIdentity) {
-                    az storage file download --share-name $backupShareName --account-name $BackupStorageName --auth-mode login --path $file.name --dest $localFilePath | Out-Null
-                } else {
-                    az storage file download --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --path $file.name --dest $localFilePath | Out-Null
-                }
-            } catch {
-                Write-Host "  Error downloading $relativePath`: $_" -ForegroundColor Red
-                # Continue with other files
-            }
-            
-            # Add small delay to avoid overwhelming the storage
-            Start-Sleep -Milliseconds 50
+
+    # Define paths for data folder under the webapp backup
+    $dataFolderPath = "$backupFolderPath/data"
+    Write-Host "Looking for data folder at path: $dataFolderPath" -ForegroundColor Yellow
+
+    # Check for dedicated data folder
+    Write-Host "Checking for dedicated data folder at $dataFolderPath..." -ForegroundColor Yellow
+    $dataFolderExists = $false
+
+    try {
+        if ($useManagedIdentity) {
+            $dataFolderCheck = az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --auth-mode login --name $dataFolderPath --query exists -o tsv 2>$null
+            $dataFolderExists = $dataFolderCheck -eq "true"
+        } else {
+            $dataFolderCheck = az storage directory exists --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name $dataFolderPath --query exists -o tsv 2>$null
+            $dataFolderExists = $dataFolderCheck -eq "true"
         }
+    } catch {
+        Write-Host "Error checking data folder: $_" -ForegroundColor Red
+        $dataFolderExists = $false
     }
-    
+
+    # Decide what to download
+    if ($dataFolderExists) {
+        Write-Host "Found dedicated data folder at $dataFolderPath, downloading from there" -ForegroundColor Green
+        $downloadPath = $dataFolderPath
+    } else {
+        Write-Host "No dedicated data folder found, downloading from root backup folder $backupFolderPath" -ForegroundColor Yellow
+        $downloadPath = $backupFolderPath
+    }
+
+    # Use az storage file download-batch for robust download of all files (including binaries)
+    Write-Host "Downloading all files from Azure File Share path '$downloadPath' to local temp directory '$tempDir'..." -ForegroundColor Yellow
+    $pattern = "$downloadPath/*"
+    if ($useManagedIdentity) {
+        $downloadResult = az storage file download-batch --source $backupShareName --account-name $BackupStorageName --auth-mode login --destination $tempDir --pattern $pattern 2>&1
+    } else {
+        $downloadResult = az storage file download-batch --source $backupShareName --account-name $BackupStorageName --account-key $backupKey --destination $tempDir --pattern $pattern 2>&1
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Error downloading files: $downloadResult" -ForegroundColor Red
+        exit 1
+    }
+
+    # Check if files were downloaded
+    $localFiles = Get-ChildItem -Path $tempDir -Recurse -File
+    $fileCount = $localFiles.Count
+
+    if ($fileCount -eq 0) {
+        Write-Host "No files were downloaded to restore. Check if the backup exists." -ForegroundColor Yellow
+        Write-Host "Check the following: " -ForegroundColor Yellow
+        Write-Host "1. The backup path $backupFolderPath in share $backupShareName" -ForegroundColor Yellow
+        Write-Host "2. Permissions to access the storage account" -ForegroundColor Yellow
+        Write-Host "3. Network connectivity to the storage account" -ForegroundColor Yellow
+        exit 0
+    } else {
+        Write-Host "Successfully downloaded $fileCount files for restoration." -ForegroundColor Green
+    }
+
     # Get publishing credentials and Kudu information for the web app
     Write-Host "Getting publishing credentials for web app..." -ForegroundColor Yellow
     $publishingProfile = az webapp deployment list-publishing-profiles --name $WebAppName --resource-group $ResourceGroupName | ConvertFrom-Json
@@ -240,6 +271,32 @@ try {
             # Convert backslashes to forward slashes for web paths
             $relativePath = $relativePath.Replace("\", "/")
             
+            # Process the relative path to handle the folder structure correctly
+            if ($dataFolderExists) {
+                # If we downloaded from a data subfolder, we need to strip that prefix
+                # Example: if downloadPath was 'webapp/data', we remove that prefix
+                $downloadPathPrefix = $downloadPath.TrimStart("/")
+                if ($relativePath.StartsWith($downloadPathPrefix)) {
+                    # +1 to account for the forward slash after the prefix
+                    $relativePath = $relativePath.Substring($downloadPathPrefix.Length + 1)
+                    Write-Host "  Adjusted path to: $relativePath" -ForegroundColor Gray
+                }
+            } else {
+                # If we downloaded from the root backup folder, we need to strip the webapp name
+                $webAppNamePrefix = $WebAppName
+                if ($relativePath.StartsWith($webAppNamePrefix)) {
+                    # +1 to account for the forward slash after the prefix
+                    $relativePath = $relativePath.Substring($webAppNamePrefix.Length + 1)
+                    Write-Host "  Adjusted path to: $relativePath" -ForegroundColor Gray
+                }
+                
+                # If there's still a 'data' prefix in the path, we should handle that too
+                if ($relativePath.StartsWith("data/")) {
+                    $relativePath = $relativePath.Substring(5) # "data/".Length = 5
+                    Write-Host "  Further adjusted path to: $relativePath" -ForegroundColor Gray
+                }
+            }
+            
             # Target path in the web app
             $targetPath = "$kuduPath$relativePath"
             
@@ -315,7 +372,7 @@ try {
     exit 1
 } finally {
     # Clean up the temp directory
-    Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    # Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Restore completed successfully." -ForegroundColor Green

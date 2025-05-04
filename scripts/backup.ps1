@@ -3,11 +3,11 @@ param(
   [string]$SourceStorageName,
   
   [Parameter(Mandatory=$false)]
-  [string]$ResourceGroupName = "nostria"
+  [string]$ResourceGroupName = "nostria",
+  
+  [Parameter(Mandatory=$false)]
+  [string]$BackupStorageName = "nostriabak"
 )
-
-# Add -BackupStorageName parameter if you want to specify a custom backup storage account
-$BackupStorageName = "${SourceStorageName}bkp"
 
 Write-Host "Backing up files from $SourceStorageName to $BackupStorageName..." -ForegroundColor Yellow
 
@@ -35,18 +35,29 @@ try {
     exit 1
 }
 
+# Use a central 'backups' share in the backup storage account
+$backupShareName = "backups"
+
+# Check if backup share exists
+$backupShareExists = (az storage share exists --name $backupShareName --account-name $BackupStorageName --account-key $backupKey --query "exists" -o tsv)
+if ($backupShareExists -eq "false") {
+    Write-Host "  Creating backup share: $backupShareName" -ForegroundColor Yellow
+    az storage share create --name $backupShareName --account-name $BackupStorageName --account-key $backupKey | Out-Null
+}
+
 foreach ($share in $shares) {
     Write-Host "Processing share: $($share.name)" -ForegroundColor Cyan
     
-    # Create backup share if it doesn't exist
-    $backupShareName = "$($share.name)-backup"
+    # Create a folder in the backup share for this storage account/share
+    $backupFolderPath = "${SourceStorageName}/${$share.name}"
     
-    # Check if backup share exists
-    $backupShareExists = (az storage share exists --name $backupShareName --account-name $BackupStorageName --account-key $backupKey --query "exists" -o tsv)
-    if ($backupShareExists -eq "false") {
-        Write-Host "  Creating backup share: $backupShareName" -ForegroundColor Yellow
-        az storage share create --name $backupShareName --account-name $BackupStorageName --account-key $backupKey | Out-Null
-    }
+    # Create folder structure in backup if needed
+    try {
+        # Create storage account folder
+        az storage directory create --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name $SourceStorageName | Out-Null
+        # Create share folder
+        az storage directory create --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --name $backupFolderPath | Out-Null
+    } catch {}
     
     # Create a temporary directory for copying files
     $tempDir = Join-Path $env:TEMP "AzureFileShareBackup_$(Get-Random)"
@@ -82,7 +93,8 @@ foreach ($share in $shares) {
         $localFiles = Get-ChildItem -Path $tempDir -Recurse -File
         foreach ($localFile in $localFiles) {
             $relativePath = $localFile.FullName.Substring($tempDir.Length + 1)
-            $directoryPath = Split-Path -Path $relativePath -Parent
+            $backupPath = "$backupFolderPath/$relativePath"
+            $directoryPath = Split-Path -Path $backupPath -Parent
             
             if (![string]::IsNullOrEmpty($directoryPath)) {
                 # Create directory in backup if needed
@@ -95,7 +107,7 @@ foreach ($share in $shares) {
             }
             
             # Upload file to backup
-            az storage file upload --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --source $localFile.FullName --path $relativePath | Out-Null
+            az storage file upload --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --source $localFile.FullName --path $backupPath | Out-Null
         }
     } catch {
         Write-Host "  Error processing share $($share.name): $_" -ForegroundColor Red

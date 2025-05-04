@@ -49,9 +49,4 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = i
 output id string = storageAccount.id
 output name string = storageAccount.name
 output apiVersion string = storageAccount.apiVersion
-
-// Outputs
-// output storageAccountId string = storageAccount.id
-// output storageAccountName string = storageAccount.name
-// output fileShareName string = fileShareName
-// output fileShareResourceId string = fileShare.id
+output fileShareName string = fileShare.name

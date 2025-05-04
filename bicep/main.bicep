@@ -31,6 +31,15 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
   }
 }
 
+// Deploy a centralized backup storage account
+module centralBackupStorage 'modules/central-backup.bicep' = {
+  name: '${baseAppName}-central-backup-deployment'
+  params: {
+    name: 'nostriabak'
+    location: location
+  }
+}
+
 var discoveryStorageAccountName = '${baseAppName}discovery'
 
 // Storage Account for Discovery - moved before the app creation
@@ -61,6 +70,10 @@ module discoveryApp 'modules/container-app.bicep' = {
       {
         name: 'Lmdb__MaxReaders'
         value: 4096
+      }
+      {
+        name: 'Lmdb__DatabasePath'
+        value: '/home/data'
       }
       {
         name: 'Lmdb__SizeInMb'
@@ -105,16 +118,6 @@ module discoveryAppCert 'modules/container-app-certificate.bicep' = {
     containerAppId: discoveryApp.outputs.id
   }
   dependsOn: [discoveryApp]
-}
-
-// Backup Storage for Discovery
-module discoveryBackupStorage 'modules/backup.bicep' = {
-  name: '${baseAppName}-discovery-backup-deployment'
-  params: {
-    sourceStorageAccountName: discoveryStorageAccountName
-    location: location
-  }
-  dependsOn: [discoveryStorageUpdate]
 }
 
 var websiteStorageAccountName = '${baseAppName}website'
@@ -168,16 +171,6 @@ module websiteAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [websiteApp]
 }
 
-// Backup Storage for Website
-module websiteBackupStorage 'modules/backup.bicep' = {
-  name: '${baseAppName}-website-backup-deployment'
-  params: {
-    sourceStorageAccountName: websiteStorageAccountName
-    location: location
-  }
-  dependsOn: [websiteStorageUpdate]
-}
-
 var appStorageAccountName = '${baseAppName}app'
 
 // Storage Account for Main app - moved before the app creation
@@ -229,16 +222,6 @@ module mainAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [mainApp]
 }
 
-// Backup Storage for Main app site
-module appBackupStorage 'modules/backup.bicep' = {
-  name: '${baseAppName}-app-backup-deployment'
-  params: {
-    sourceStorageAccountName: appStorageAccountName
-    location: location
-  }
-  dependsOn: [appStorageUpdate]
-}
-
 var metadataStorageAccountName = '${baseAppName}metadata'
 
 // Storage Account for Metadata - moved before the app creation
@@ -285,7 +268,7 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'metadata.nostria.app'
-    containerAppId: metadataApp.outputs.id  // Fixed - was incorrectly using websiteApp.outputs.id
+    containerAppId: metadataApp.outputs.id
   }
   dependsOn: [metadataApp]
 }
@@ -293,6 +276,8 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
+output centralBackupStorageName string = centralBackupStorage.outputs.name
+output centralBackupShareName string = centralBackupStorage.outputs.fileShareName
 output discoveryAppUrl string = 'https://${discoveryApp.outputs.hostname}'
 output websiteAppUrl string = 'https://${websiteApp.outputs.hostname}'
 output mainAppUrl string = 'https://${mainApp.outputs.hostname}'

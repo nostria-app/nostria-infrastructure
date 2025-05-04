@@ -1,12 +1,12 @@
 param(
   [Parameter(Mandatory=$true)]
-  [string]$BackupStorageName,
-  
-  [Parameter(Mandatory=$true)]
   [string]$TargetStorageName,
   
   [Parameter(Mandatory=$false)]
-  [string]$ResourceGroupName = "nostria"
+  [string]$ResourceGroupName = "nostria",
+  
+  [Parameter(Mandatory=$false)]
+  [string]$BackupStorageName = "nostriabak"
 )
 
 Write-Host "Restoring files from $BackupStorageName to $TargetStorageName..." -ForegroundColor Yellow
@@ -23,47 +23,67 @@ try {
     exit 1
 }
 
-# Get all backup shares
+# The central backup share name
+$backupShareName = "backups"
+
+# Check if backup folder exists for the target storage account
+$backupFolderPrefix = "$TargetStorageName/"
+Write-Host "Checking for backups under prefix: $backupFolderPrefix" -ForegroundColor Yellow
+
 try {
-    $backupSharesJson = (az storage share list --account-name $BackupStorageName --account-key $backupKey --query "[?contains(name, '-backup')]" -o json)
-    if ($LASTEXITCODE -ne 0) { throw "Failed to list backup shares" }
+    # List all directories in the backup share for the target storage account
+    $directoriesJson = (az storage directory list --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --path "$TargetStorageName" -o json)
+    if ($LASTEXITCODE -ne 0) { throw "Failed to list backup folders or no backup folders found" }
     
-    $backupShares = $backupSharesJson | ConvertFrom-Json
-    Write-Host "Found $($backupShares.Count) backup shares to restore." -ForegroundColor Green
+    $directories = $directoriesJson | ConvertFrom-Json
+    if ($directories.Count -eq 0) {
+        Write-Host "No backup folders found for $TargetStorageName" -ForegroundColor Red
+        exit 1
+    }
+    
+    Write-Host "Found backup folders for $TargetStorageName" -ForegroundColor Green
 } catch {
-    Write-Host "Error retrieving backup shares: $_" -ForegroundColor Red
+    Write-Host "Error retrieving backup folders: $_" -ForegroundColor Red
     exit 1
 }
 
-foreach ($backupShare in $backupShares) {
-    # Create target share if it doesn't exist
-    $targetShareName = $backupShare.name -replace "-backup", ""
-    Write-Host "Processing backup share: $($backupShare.name) -> $targetShareName" -ForegroundColor Cyan
+# Create a temporary directory for copying files
+$tempDir = Join-Path $env:TEMP "AzureFileShareRestore_$(Get-Random)"
+New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+Write-Host "Using temp directory: $tempDir" -ForegroundColor Gray
+
+# For each share in the backup (subfolders under the target storage account folder)
+foreach ($dir in $directories) {
+    # Get share name from directory path
+    $shareName = Split-Path -Path $dir.name -Leaf
+    
+    Write-Host "Processing backup for share: $shareName" -ForegroundColor Cyan
     
     # Check if target share exists
-    $targetShareExists = (az storage share exists --name $targetShareName --account-name $TargetStorageName --account-key $targetKey --query "exists" -o tsv)
+    $targetShareExists = (az storage share exists --name $shareName --account-name $TargetStorageName --account-key $targetKey --query "exists" -o tsv)
     if ($targetShareExists -eq "false") {
-        Write-Host "  Creating target share: $targetShareName" -ForegroundColor Yellow
-        az storage share create --name $targetShareName --account-name $TargetStorageName --account-key $targetKey | Out-Null
+        Write-Host "  Creating target share: $shareName" -ForegroundColor Yellow
+        az storage share create --name $shareName --account-name $TargetStorageName --account-key $targetKey | Out-Null
     }
     
-    # Create a temporary directory for copying files
-    $tempDir = Join-Path $env:TEMP "AzureFileShareRestore_$(Get-Random)"
-    New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
-    Write-Host "  Using temp directory: $tempDir" -ForegroundColor Gray
-    
     try {
+        # Clear temp directory for this share
+        Remove-Item -Path "$tempDir\*" -Recurse -Force -ErrorAction SilentlyContinue
+        
         # Download files from backup share
-        Write-Host "  Downloading files from backup share..." -ForegroundColor Yellow
-        # List all files in the backup share recursively
-        $filesJson = (az storage file list -s $backupShare.name --account-name $BackupStorageName --account-key $backupKey -p "/" --recursive -o json)
+        Write-Host "  Downloading files from backup..." -ForegroundColor Yellow
+        $backupFolderPath = "$TargetStorageName/$shareName"
+        
+        # List all files in the backup folder recursively
+        $filesJson = (az storage file list -s $backupShareName --account-name $BackupStorageName --account-key $backupKey --path $backupFolderPath --recursive -o json)
         $files = $filesJson | ConvertFrom-Json
         
         # Download each file
         foreach ($file in $files) {
             if ($file.type -eq "file") {
-                $filePath = $file.name
-                $localFilePath = Join-Path $tempDir $filePath
+                # Get relative path removing the backup folder prefix
+                $relativePath = $file.name.Substring($backupFolderPath.Length + 1)
+                $localFilePath = Join-Path $tempDir $relativePath
                 
                 # Create parent directory if it doesn't exist
                 $parentDir = Split-Path -Path $localFilePath -Parent
@@ -72,11 +92,11 @@ foreach ($backupShare in $backupShares) {
                 }
                 
                 # Download the file
-                az storage file download --share-name $backupShare.name --account-name $BackupStorageName --account-key $backupKey --path $filePath --dest $localFilePath | Out-Null
+                az storage file download --share-name $backupShareName --account-name $BackupStorageName --account-key $backupKey --path $file.name --dest $localFilePath | Out-Null
             }
         }
-
-        # Upload files to target
+        
+        # Upload files to target share
         Write-Host "  Uploading files to target share..." -ForegroundColor Yellow
         $localFiles = Get-ChildItem -Path $tempDir -Recurse -File
         foreach ($localFile in $localFiles) {
@@ -86,22 +106,22 @@ foreach ($backupShare in $backupShares) {
             if (![string]::IsNullOrEmpty($directoryPath)) {
                 # Create directory in target if needed
                 try {
-                    $dirExists = (az storage file exists --share-name $targetShareName --account-name $TargetStorageName --account-key $targetKey --path $directoryPath --query "exists" -o tsv 2>$null)
+                    $dirExists = (az storage file exists --share-name $shareName --account-name $TargetStorageName --account-key $targetKey --path $directoryPath --query "exists" -o tsv 2>$null)
                     if ($dirExists -eq "false" -or $LASTEXITCODE -ne 0) {
-                        az storage directory create --share-name $targetShareName --account-name $TargetStorageName --account-key $targetKey --name $directoryPath | Out-Null
+                        az storage directory create --share-name $shareName --account-name $TargetStorageName --account-key $targetKey --name $directoryPath | Out-Null
                     }
                 } catch {}
             }
             
             # Upload file to target
-            az storage file upload --share-name $targetShareName --account-name $TargetStorageName --account-key $targetKey --source $localFile.FullName --path $relativePath | Out-Null
+            az storage file upload --share-name $shareName --account-name $TargetStorageName --account-key $targetKey --source $localFile.FullName --path $relativePath | Out-Null
         }
     } catch {
-        Write-Host "  Error processing share $($backupShare.name): $_" -ForegroundColor Red
-    } finally {
-        # Clean up the temp directory
-        Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Error processing share $shareName: $_" -ForegroundColor Red
     }
 }
+
+# Clean up the temp directory
+Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host "Restore completed successfully." -ForegroundColor Green

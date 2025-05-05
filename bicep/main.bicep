@@ -173,6 +173,32 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [metadataApp]
 }
 
+// status App (Single instance)
+module statusApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-status-app-deployment'
+  params: {
+    name: 'nostria-status'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
+    customDomainName: 'status.nostria.app'
+    appSettings: []
+  }
+}
+
+// Certificate for status App
+module statusAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-status-app-cert-deployment'
+  params: {
+    name: 'nostria-status'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'status.nostria.app'
+    containerAppId: statusApp.outputs.id
+  }
+  dependsOn: [statusApp]
+}
+
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name

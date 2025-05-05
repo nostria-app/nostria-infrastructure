@@ -4,7 +4,7 @@ param appServicePlanId string
 param containerImage string
 param customDomainName string = ''
 param appSettings array = []
-param storageAccountName string
+param storageAccountName string = ''
 
 // Main container app resource
 resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
@@ -25,6 +25,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
           value: 'true'
         }
+      ], !empty(storageAccountName) ? [
         {
           name: 'AZURE_STORAGE_AUTHENTICATION_TYPE'
           value: 'ManagedIdentity'
@@ -33,7 +34,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'AZURE_STORAGE_ACCOUNT_NAME'
           value: storageAccountName
         }
-      ])
+      ] : [])
       linuxFxVersion: 'DOCKER|${containerImage}'
       // Storage mount is commented out but can be enabled if needed
       // azureStorageAccounts: {

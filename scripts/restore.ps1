@@ -372,7 +372,7 @@ try {
     exit 1
 } finally {
     # Clean up the temp directory
-    # Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Restore completed successfully." -ForegroundColor Green

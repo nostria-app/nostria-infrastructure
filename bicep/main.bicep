@@ -31,24 +31,12 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
   }
 }
 
-// Deploy a centralized backup storage account
+// Deploy a centralized backup storage account - KEEPING THIS ONE
 module centralBackupStorage 'modules/central-backup.bicep' = {
   name: '${baseAppName}-central-backup-deployment'
   params: {
     name: 'nostriabak'
     location: location
-  }
-}
-
-var discoveryStorageAccountName = '${baseAppName}discovery'
-
-// Storage Account for Discovery - moved before the app creation
-module discoveryStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-discovery-storage-deployment'
-  params: {
-    name: discoveryStorageAccountName
-    location: location
-    webAppPrincipalId: '' // Will be updated after app creation
   }
 }
 
@@ -61,7 +49,6 @@ module discoveryApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'discovery.nostria.app'
-    storageAccountName: discoveryStorageAccountName
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -93,18 +80,6 @@ module discoveryApp 'modules/container-app.bicep' = {
       }
     ]
   }
-  dependsOn: [discoveryStorage]
-}
-
-// Update storage account with app's managed identity
-module discoveryStorageUpdate 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-discovery-storage-update'
-  params: {
-    name: discoveryStorageAccountName
-    location: location
-    webAppPrincipalId: discoveryApp.outputs.webAppPrincipalId
-  }
-  dependsOn: [discoveryApp]
 }
 
 // Certificate for Discovery App
@@ -120,18 +95,6 @@ module discoveryAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [discoveryApp]
 }
 
-var websiteStorageAccountName = '${baseAppName}website'
-
-// Storage Account for Website - moved before the app creation
-module websiteStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-website-storage-deployment'
-  params: {
-    name: websiteStorageAccountName
-    location: location
-    webAppPrincipalId: '' // Will be updated after app creation
-  }
-}
-
 // Website App (Single instance)
 module websiteApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-website-app-deployment'
@@ -141,21 +104,8 @@ module websiteApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-website:latest'
     customDomainName: 'www.nostria.app'
-    storageAccountName: websiteStorageAccountName
     appSettings: []
   }
-  dependsOn: [websiteStorage]
-}
-
-// Update storage account with app's managed identity
-module websiteStorageUpdate 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-website-storage-update'
-  params: {
-    name: websiteStorageAccountName
-    location: location
-    webAppPrincipalId: websiteApp.outputs.webAppPrincipalId
-  }
-  dependsOn: [websiteApp]
 }
 
 // Certificate for Website App
@@ -171,18 +121,6 @@ module websiteAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [websiteApp]
 }
 
-var appStorageAccountName = '${baseAppName}app'
-
-// Storage Account for Main app - moved before the app creation
-module appStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-app-storage-deployment'
-  params: {
-    name: appStorageAccountName
-    location: location
-    webAppPrincipalId: '' // Will be updated after app creation
-  }
-}
-
 // Main App (Single instance)
 module mainApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-main-app-deployment'
@@ -192,21 +130,8 @@ module mainApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria:latest'
     customDomainName: 'nostria.app'
-    storageAccountName: appStorageAccountName
     appSettings: []
   }
-  dependsOn: [appStorage]
-}
-
-// Update storage account with app's managed identity
-module appStorageUpdate 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-app-storage-update'
-  params: {
-    name: appStorageAccountName
-    location: location
-    webAppPrincipalId: mainApp.outputs.webAppPrincipalId
-  }
-  dependsOn: [mainApp]
 }
 
 // Certificate for Main App
@@ -222,18 +147,6 @@ module mainAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [mainApp]
 }
 
-var metadataStorageAccountName = '${baseAppName}metadata'
-
-// Storage Account for Metadata - moved before the app creation
-module metadataStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-metadata-storage-deployment'
-  params: {
-    name: metadataStorageAccountName
-    location: location
-    webAppPrincipalId: '' // Will be updated after app creation
-  }
-}
-
 // Metadata App (Single instance)
 module metadataApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-metadata-app-deployment'
@@ -243,24 +156,11 @@ module metadataApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-metadata:latest'
     customDomainName: 'metadata.nostria.app'
-    storageAccountName: metadataStorageAccountName
     appSettings: []
   }
-  dependsOn: [metadataStorage]
 }
 
-// Update storage account with app's managed identity
-module metadataStorageUpdate 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-metadata-storage-update'
-  params: {
-    name: metadataStorageAccountName
-    location: location
-    webAppPrincipalId: metadataApp.outputs.webAppPrincipalId
-  }
-  dependsOn: [metadataApp]
-}
-
-// Certificate for Metadata App - Fixed incorrect reference to containerAppId
+// Certificate for Metadata App
 module metadataAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-metadata-app-cert-deployment'
   params: {

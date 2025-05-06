@@ -118,7 +118,7 @@ https://www.jlaundry.nz/2022/azure_region_abbreviations/
 
 ## Regions
 
-These are the planned regions for Nostria:
+### Planned regions for Nostria
 
 discovery-eu.nostria.app (Europe)   
 discovery-us.nostria.app (USA)   
@@ -133,7 +133,7 @@ discovery-me.nostria.app (Middle East)
 
 We might need to expand with multiple data centers in the same region, perhaps we could either name them with a number (e.g. discovery-eu1.nostria.app, discovery-eu2.nostria.app) or use a different naming convention.
 
-These are the picked data centers for each region:
+### Data centers for each region
 
 eu: westeurope (Amsterdam, Netherlands)   
 us: centralus (Iowa, US)   
@@ -146,7 +146,7 @@ cn: chinanorth (Beijing, China) (Special considerations for China, might not be 
 in: centralindia (Pune, India)   
 me: uaenorth (Abu Dhabi, UAE)   
 
-Initial Deployment Schedule Plan:
+### Initial Deployment Schedule Plan
 
 1. Europe - This is our primary region, stateless apps will only be hosted here initially.
 2. Africa - This is our first secondary region.

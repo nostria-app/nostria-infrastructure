@@ -118,7 +118,7 @@ https://www.jlaundry.nz/2022/azure_region_abbreviations/
 
 ## Regions
 
-These are the planning regions for Nostria:
+These are the planned regions for Nostria:
 
 discovery-eu.nostria.app (Europe)
 discovery-us.nostria.app (USA)

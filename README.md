@@ -148,10 +148,11 @@ me: uaenorth (Abu Dhabi, UAE)
 
 Initial Deployment Schedule Plan:
 
-1. Africa - This is our first secondary region.
-2. US - This is our second secondary region.
-3. Asia, we will first deploy in Singapore, which gives OK coverage for the rest of Asia and Australia.
-4. South America.
+1. Europe - This is our primary region, stateless apps will only be hosted here initially.
+2. Africa - This is our first secondary region.
+3. US - This is our second secondary region.
+4. Asia, we will first deploy in Singapore, which gives OK coverage for the rest of Asia and Australia.
+5. South America.
 
 ## License
 

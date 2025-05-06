@@ -7,6 +7,14 @@ param appSettings array = []
 param dockerComposeYaml string
 param storageAccountName string = ''
 
+// Get a reference to the storage account
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = if (!empty(storageAccountName)) {
+  name: storageAccountName
+}
+
+// Get storage account key for initial mount but app will use managed identity later
+var storageAccountKey = !empty(storageAccountName) ? storageAccount.listKeys().keys[0].value : ''
+
 // Main container app resource with docker-compose support
 resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   name: name
@@ -34,11 +42,6 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'DOCKER_ENABLE_CI'
           value: 'true'
         }
-        // Default port is now commented out as it should be specified in the appSettings parameter
-        // {
-        //   name: 'WEBSITES_PORT'
-        //   value: '8080'
-        // }
       ], !empty(storageAccountName) ? [
         {
           name: 'AZURE_STORAGE_AUTHENTICATION_TYPE'
@@ -50,6 +53,16 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       ] : [])
       linuxFxVersion: 'COMPOSE|${base64(dockerComposeYaml)}'
+      // Configure Azure Storage mount when storage account name is provided
+      azureStorageAccounts: !empty(storageAccountName) ? {
+        data: {
+          type: 'AzureFiles'
+          accountName: storageAccountName
+          mountPath: '/data'
+          shareName: 'data'
+          accessKey: storageAccountKey // Required for initial mount, app will use managed identity later
+        }
+      } : {}
     }
   }
 }

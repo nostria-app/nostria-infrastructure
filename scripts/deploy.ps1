@@ -12,14 +12,17 @@ param(
   [int]$MediaCount = 1
 )
 
+# Combine ResourceGroupName and Location for the actual resource group name
+$actualResourceGroupName = "$ResourceGroupName-$Location"
+
 # Create resource group if it doesn't exist
-$resourceGroup = az group show --name $ResourceGroupName 2>&1
+$resourceGroup = az group show --name $actualResourceGroupName 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Creating resource group '$ResourceGroupName' in location '$Location'..." -ForegroundColor Yellow
-    az group create --name $ResourceGroupName --location $Location
+    Write-Host "Creating resource group '$actualResourceGroupName' in location '$Location'..." -ForegroundColor Yellow
+    az group create --name $actualResourceGroupName --location $Location
     Write-Host "Resource group created." -ForegroundColor Green
 } else {
-    Write-Host "Using existing resource group '$ResourceGroupName'." -ForegroundColor Green
+    Write-Host "Using existing resource group '$actualResourceGroupName'." -ForegroundColor Green
 }
 
 # Deploy Bicep template
@@ -29,7 +32,7 @@ Write-Host "Starting deployment: $deploymentName..." -ForegroundColor Yellow
 # Using az deployment group create instead of New-AzResourceGroupDeployment
 $deploymentResult = az deployment group create `
   --name $deploymentName `
-  --resource-group $ResourceGroupName `
+  --resource-group $actualResourceGroupName `
   --template-file "$PSScriptRoot\..\bicep\main.bicep" `
   --parameters location=$Location relayCount=$RelayCount mediaCount=$MediaCount `
   --verbose

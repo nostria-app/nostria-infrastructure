@@ -98,7 +98,7 @@ This repository includes GitHub Actions workflows for automating the deployment 
 - Upgrading storage accounts to Premium tier:
   ```powershell
   # Update the sku parameter in the bicep template when deploying
-  ./scripts/deploy.ps1 -ResourceGroupName "nostria" -StorageSku "Premium_LRS"
+  ./scripts/deploy.ps1 -ResourceGroupName "nostria-we" -StorageSku "Premium_LRS"
   ```
 
 - Adding monitoring and alerting for the infrastructure
@@ -111,6 +111,10 @@ This repository includes GitHub Actions workflows for automating the deployment 
 - Web Apps have a principal with access to the storage account.
 - Web apps does not have access to the backup storage account.
 - This ensures that hacked web apps cannot access the backup storage account.
+
+## Regional Abbreviations
+
+https://www.jlaundry.nz/2022/azure_region_abbreviations/
 
 ## License
 

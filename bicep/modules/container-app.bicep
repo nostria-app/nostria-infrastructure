@@ -6,6 +6,14 @@ param customDomainName string = ''
 param appSettings array = []
 param storageAccountName string = ''
 
+// Get a reference to the storage account
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = if (!empty(storageAccountName)) {
+  name: storageAccountName
+}
+
+// Get storage account key for initial mount but app will use managed identity later
+var storageAccountKey = !empty(storageAccountName) ? storageAccount.listKeys().keys[0].value : ''
+
 // Main container app resource
 resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   name: name
@@ -36,16 +44,16 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       ] : [])
       linuxFxVersion: 'DOCKER|${containerImage}'
-      // Storage mount is commented out but can be enabled if needed
-      // azureStorageAccounts: {
-      //   data: {
-      //     type: 'AzureFiles'
-      //     accountName: storageAccountName
-      //     mountPath: '/data'
-      //     shareName: 'data'
-      //     accessKey: '' // No access key - we use managed identity instead
-      //   }
-      // }
+      // Configure Azure Storage mount when storage account name is provided
+      azureStorageAccounts: !empty(storageAccountName) ? {
+        data: {
+          type: 'AzureFiles'
+          accountName: storageAccountName
+          mountPath: '/data'
+          shareName: 'data'
+          accessKey: storageAccountKey // Required for initial mount, app will use managed identity later
+        }
+      } : {}
     }
   }
 }

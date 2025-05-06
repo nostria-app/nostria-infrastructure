@@ -26,7 +26,7 @@ var mediaNames = [
 module appServicePlan 'modules/app-service-plan.bicep' = {
   name: '${baseAppName}-plan-deployment'
   params: {
-    name: '${baseAppName}-linux-plan'
+    name: '${baseAppName}-plan'
     location: location
   }
 }
@@ -200,14 +200,23 @@ module statusAppCert 'modules/container-app-certificate.bicep' = {
 }
 
 // Relay Apps (Multiple instances based on relayCount)
+module relayStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-storage-deployment'
+  params: {
+    name: '${toLower(replace(relayNames[i], '-', ''))}sa'
+    location: location
+  }
+}]
+
 module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
   name: '${baseAppName}-relay-${toLower(relayNames[i])}-deployment'
   params: {
-    name: 'nostria-relay-${toLower(relayNames[i])}'
+    name: 'nostria-${toLower(relayNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-relay:latest'
     customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    storageAccountName: relayStorageAccounts[i].outputs.name
     appSettings: [
       {
         name: 'Relay__Contact'
@@ -221,15 +230,38 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
         name: 'Relay__PrivacyPolicy'
         value: 'https://relay.nostria.com/privacy-policy'
       }
+      {
+        name: 'Lmdb__DatabasePath'
+        value: '/data'
+      }
+      {
+        name: 'Lmdb__MaxReaders'
+        value: 4096
+      }
+      {
+        name: 'Lmdb__SizeInMb'
+        value: 1024
+      }
     ]
   }
+  dependsOn: [relayStorageAccounts]
+}]
+
+// Assign Storage File Data SMB Share Contributor role to relay apps
+module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-role-assignment'
+  params: {
+    storageAccountName: relayStorageAccounts[i].outputs.name
+    principalId: relayApps[i].outputs.webAppPrincipalId
+  }
+  dependsOn: [relayApps, relayStorageAccounts]
 }]
 
 // Certificates for Relay Apps
 module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, relayCount): {
   name: '${baseAppName}-relay-${toLower(relayNames[i])}-cert-deployment'
   params: {
-    name: 'nostria-relay-${toLower(relayNames[i])}'
+    name: 'nostria-${toLower(relayNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(relayNames[i])}.nostria.app'
@@ -239,13 +271,22 @@ module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in rang
 }]
 
 // Media Apps (Multiple instances based on mediaCount) using docker-compose
+module mediaStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-storage-deployment'
+  params: {
+    name: '${toLower(replace(mediaNames[i], '-', ''))}sa'
+    location: location
+  }
+}]
+
 module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, mediaCount): {
   name: '${baseAppName}-media-${toLower(mediaNames[i])}-deployment'
   params: {
-    name: 'nostria-media-${toLower(mediaNames[i])}'
+    name: 'nostria-${toLower(mediaNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    storageAccountName: mediaStorageAccounts[i].outputs.name
     dockerComposeYaml: '''
 version: '3'
 services:
@@ -254,10 +295,8 @@ services:
     restart: always
     ports:
       - "3000:3000"
-    volumes:
-      - ${HOME}/data:/app/data
     environment:
-      - Media__StoragePath=/app/data
+      - Media__StoragePath=/data
       - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
       - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
   media-processor:
@@ -265,8 +304,6 @@ services:
     restart: always
     depends_on:
       - media-app
-    volumes:
-      - ${HOME}/data:/app/data
 '''
     appSettings: [
       {
@@ -275,7 +312,7 @@ services:
       }
       {
         name: 'Media__StoragePath'
-        value: '/app/data'
+        value: '/data'
       }
       {
         name: 'Media__Contact'
@@ -287,13 +324,24 @@ services:
       }
     ]
   }
+  dependsOn: [mediaStorageAccounts]
+}]
+
+// Assign Storage File Data SMB Share Contributor role to media apps
+module mediaStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-role-assignment'
+  params: {
+    storageAccountName: mediaStorageAccounts[i].outputs.name
+    principalId: mediaApps[i].outputs.webAppPrincipalId
+  }
+  dependsOn: [mediaApps, mediaStorageAccounts]
 }]
 
 // Certificates for Media Apps
 module mediaAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, mediaCount): {
   name: '${baseAppName}-media-${toLower(mediaNames[i])}-cert-deployment'
   params: {
-    name: 'nostria-media-${toLower(mediaNames[i])}'
+    name: 'nostria-${toLower(mediaNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(mediaNames[i])}.nostria.app'

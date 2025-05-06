@@ -120,16 +120,38 @@ https://www.jlaundry.nz/2022/azure_region_abbreviations/
 
 These are the planned regions for Nostria:
 
-discovery-eu.nostria.app (Europe)
-discovery-us.nostria.app (USA)
-discovery-as.nostria.app (Asia)
-discovery-af.nostria.app (Africa)
-discovery-sa.nostria.app (South America)
-discovery-au.nostria.app (Australia)
-discovery-jp.nostria.app (Japan)
-discovery-cn.nostria.app (China)
-discovery-in.nostria.app (India)
-discovery-me.nostria.app (Middle East)
+discovery-eu.nostria.app (Europe)   
+discovery-us.nostria.app (USA)   
+discovery-as.nostria.app (Asia)   
+discovery-af.nostria.app (Africa)   
+discovery-sa.nostria.app (South America)   
+discovery-au.nostria.app (Australia)   
+discovery-jp.nostria.app (Japan)   
+discovery-cn.nostria.app (China)   
+discovery-in.nostria.app (India)   
+discovery-me.nostria.app (Middle East)   
+
+We might need to expand with multiple data centers in the same region, perhaps we could either name them with a number (e.g. discovery-eu1.nostria.app, discovery-eu2.nostria.app) or use a different naming convention.
+
+These are the picked data centers for each region:
+
+eu: westeurope (Amsterdam, Netherlands)   
+us: centralus (Iowa, US)   
+as: southeastasia (Singapore)   
+af: southafricanorth (Johannesburg, South Africa)   
+sa: brazilsouth (São Paulo, Brazil)   
+au: australiaeast (Sydney, Australia)   
+jp: japaneast (Tokyo, Japan)   
+cn: chinanorth (Beijing, China) (Special considerations for China, might not be available for us)   
+in: centralindia (Pune, India)   
+me: uaenorth (Abu Dhabi, UAE)   
+
+Initial Deployment Schedule Plan:
+
+1. Africa - This is our first secondary region.
+2. US - This is our second secondary region.
+3. Asia, we will first deploy in Singapore, which gives OK coverage for the rest of Asia and Australia.
+4. South America.
 
 ## License
 

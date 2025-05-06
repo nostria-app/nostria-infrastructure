@@ -238,19 +238,44 @@ module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in rang
   dependsOn: [relayApps]
 }]
 
-// Media Apps (Multiple instances based on mediaCount)
-module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount): {
+// Media Apps (Multiple instances based on mediaCount) using docker-compose
+module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, mediaCount): {
   name: '${baseAppName}-media-${toLower(mediaNames[i])}-deployment'
   params: {
     name: 'nostria-media-${toLower(mediaNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-media:latest'
     customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    dockerComposeYaml: '''
+version: '3'
+services:
+  media-app:
+    image: ghcr.io/nostria-app/nostria-media:latest
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ${HOME}/data:/app/data
+    environment:
+      - Media__StoragePath=/app/data
+      - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
+      - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
+  media-processor:
+    image: ghcr.io/nostria-app/nostria-media-processor:latest
+    restart: always
+    depends_on:
+      - media-app
+    volumes:
+      - ${HOME}/data:/app/data
+'''
     appSettings: [
       {
+        name: 'WEBSITES_PORT'
+        value: '3000'
+      }
+      {
         name: 'Media__StoragePath'
-        value: '/home/media'
+        value: '/app/data'
       }
       {
         name: 'Media__Contact'

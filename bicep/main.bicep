@@ -199,6 +199,84 @@ module statusAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [statusApp]
 }
 
+// Relay Apps (Multiple instances based on relayCount)
+module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-deployment'
+  params: {
+    name: 'nostria-relay-${toLower(relayNames[i])}'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-relay:latest'
+    customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    appSettings: [
+      {
+        name: 'Relay__Contact'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+      }
+      {
+        name: 'Relay__PostingPolicy'
+        value: 'https://relay.nostria.com/posting-policy'
+      }
+      {
+        name: 'Relay__PrivacyPolicy'
+        value: 'https://relay.nostria.com/privacy-policy'
+      }
+    ]
+  }
+}]
+
+// Certificates for Relay Apps
+module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, relayCount): {
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-cert-deployment'
+  params: {
+    name: 'nostria-relay-${toLower(relayNames[i])}'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    containerAppId: relayApps[i].outputs.id
+  }
+  dependsOn: [relayApps]
+}]
+
+// Media Apps (Multiple instances based on mediaCount)
+module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-deployment'
+  params: {
+    name: 'nostria-media-${toLower(mediaNames[i])}'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-media:latest'
+    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    appSettings: [
+      {
+        name: 'Media__StoragePath'
+        value: '/home/media'
+      }
+      {
+        name: 'Media__Contact'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+      }
+      {
+        name: 'Media__PrivacyPolicy'
+        value: 'https://media.nostria.com/privacy-policy'
+      }
+    ]
+  }
+}]
+
+// Certificates for Media Apps
+module mediaAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, mediaCount): {
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-cert-deployment'
+  params: {
+    name: 'nostria-media-${toLower(mediaNames[i])}'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    containerAppId: mediaApps[i].outputs.id
+  }
+  dependsOn: [mediaApps]
+}]
+
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name

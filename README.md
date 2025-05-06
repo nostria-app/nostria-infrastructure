@@ -116,6 +116,21 @@ This repository includes GitHub Actions workflows for automating the deployment 
 
 https://www.jlaundry.nz/2022/azure_region_abbreviations/
 
+## Regions
+
+These are the planning regions for Nostria:
+
+discovery-eu.nostria.app (Europe)
+discovery-us.nostria.app (USA)
+discovery-as.nostria.app (Asia)
+discovery-af.nostria.app (Africa)
+discovery-sa.nostria.app (South America)
+discovery-au.nostria.app (Australia)
+discovery-jp.nostria.app (Japan)
+discovery-cn.nostria.app (China)
+discovery-in.nostria.app (India)
+discovery-me.nostria.app (Middle East)
+
 ## License
 
 See [LICENSE](./LICENSE) for details.

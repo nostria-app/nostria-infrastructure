@@ -4,7 +4,10 @@ param (
     [string]$ParameterFilePath = "..\bicep\main.bicepparam",
     
     [Parameter(Mandatory=$false)]
-    [string[]]$Regions,
+    [string]$ResourceGroupName = "nostria-global",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$Location = "westeurope",
     
     [Parameter(Mandatory=$false)]
     [switch]$WhatIf
@@ -90,123 +93,138 @@ if (-not (Test-Path -Path $bicepParamFile)) {
 Write-StatusMessage "Using Bicep template: $bicepTemplate" -Type Info
 Write-StatusMessage "Using parameter file: $bicepParamFile" -Type Info
 
-# Read deployRegions from the bicep parameter file
-$deployRegions = @()
-
+# Create the resource group if it doesn't exist
 try {
-    # Use Bicep CLI to read the parameters file
-    Write-StatusMessage "Reading parameters from $bicepParamFile using Bicep CLI..." -Type Info
-    $bicepParamJson = bicep build-params $bicepParamFile --stdout | ConvertFrom-Json
-    if ($bicepParamJson.parameters.deployRegions.value) {
-        $deployRegions = $bicepParamJson.parameters.deployRegions.value
-        Write-StatusMessage "Successfully parsed regions from Bicep param file using Bicep CLI" -Type Success
+    $rg = Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue
+    if (-not $rg) {
+        Write-StatusMessage "Creating resource group $ResourceGroupName in $Location..." -Type Info
+        New-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Stop
+        Write-StatusMessage "Resource group $ResourceGroupName created successfully." -Type Success
+    } else {
+        Write-StatusMessage "Resource group $ResourceGroupName already exists." -Type Info
     }
 } catch {
-    Write-StatusMessage "Bicep CLI parsing failed, will try regex fallback... Error: $_" -Type Warning
-}
-
-# Fallback: If Bicep CLI couldn't parse the parameter file, use regex
-if ($deployRegions.Count -eq 0) {
-    try {
-        Write-StatusMessage "Using regex fallback to parse parameters..." -Type Info
-        $paramContent = Get-Content -Path $bicepParamFile -Raw
-        if ($paramContent -match 'param deployRegions\s*=\s*\[(.*?)\]') {
-            $regionBlock = $matches[1]
-            $regionLines = $regionBlock -split "[\r\n]+"
-            foreach ($line in $regionLines) {
-                $clean = $line.Trim() -replace "'", '' -replace '"', '' -replace ",", ''
-                if ($clean -and -not $clean.StartsWith('//')) {
-                    $deployRegions += $clean
-                }
-            }
-            Write-StatusMessage "Successfully parsed regions using regex fallback" -Type Success
-        }
-    } catch {
-        Write-StatusMessage "Regex fallback failed to parse deployRegions. Error: $_" -Type Error
-    }
-}
-
-# Override with command line parameters if provided
-if ($Regions -and $Regions.Count -gt 0) {
-    Write-StatusMessage "Overriding regions from parameter file with command line parameters" -Type Info
-    $deployRegions = $Regions
-}
-
-if ($deployRegions.Count -eq 0) {
-    Write-StatusMessage "No deployment regions found. Please specify regions in the parameter file or via -Regions parameter." -Type Error
+    Write-StatusMessage "Failed to create or check resource group $ResourceGroupName. Error: $_" -Type Error
+    Write-StatusMessage "Make sure you're logged into Azure with the correct subscription." -Type Warning
     exit 1
 }
 
-Write-StatusMessage "Deploying to regions: $($deployRegions -join ', ')" -Type Info
-
-# Process each region for deployment
-foreach ($region in $deployRegions) {
-    $resourceGroupName = "nostria-$region"
-    
-    # Create the resource group if it doesn't exist
+# Deploy the Bicep template
+if ($WhatIf) {
+    Write-StatusMessage "Validating deployment for global infrastructure (what-if)..." -Type Info
     try {
-        $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
-        if (-not $rg) {
-            Write-StatusMessage "Creating resource group $resourceGroupName..." -Type Info
-            # Map region code to Azure location
-            $regionLocationMap = @{
-                "eu" = "westeurope"; "af" = "southafricanorth"; "us" = "centralus"; 
-                "as" = "southeastasia"; "sa" = "brazilsouth"; "au" = "australiaeast"; 
-                "jp" = "japaneast"; "cn" = "chinanorth"; "in" = "centralindia"; 
-                "me" = "uaenorth"
+        $whatIfParams = @{
+            ResourceGroupName = $ResourceGroupName
+            TemplateFile = $bicepTemplate
+            TemplateParameterFile = $bicepParamFile
+            WhatIf = $true
+            ErrorAction = 'Stop'
+        }
+        Write-StatusMessage "Using parameters: $(ConvertTo-Json $whatIfParams -Compress)" -Type Info
+        $whatIfResult = New-AzResourceGroupDeployment @whatIfParams
+        Write-StatusMessage "What-If validation completed successfully." -Type Success
+    } catch {
+        Write-StatusMessage "What-If validation failed. Error: $_" -Type Error
+        exit 1
+    }
+} else {
+    Write-StatusMessage "Starting deployment of global infrastructure to $ResourceGroupName..." -Type Info
+    try {
+        # Validate the template first
+        if ($Debug) {
+            Write-StatusMessage "Performing template validation before deployment..." -Type Info
+            try {
+                $validateParams = @{
+                    ResourceGroupName = $ResourceGroupName
+                    TemplateFile = $bicepTemplate
+                    TemplateParameterFile = $bicepParamFile
+                }
+                Test-AzResourceGroupDeployment @validateParams
+                Write-StatusMessage "Template validation successful." -Type Success
             }
-            $location = $regionLocationMap[$region]
-            if (-not $location) { $location = "westeurope" }
-            New-AzResourceGroup -Name $resourceGroupName -Location $location -ErrorAction Stop
-            Write-StatusMessage "Resource group $resourceGroupName created in $location." -Type Success
+            catch {
+                Write-StatusMessage "Template validation failed with the following errors:" -Type Error
+                Write-StatusMessage $_.Exception.Message -Type Error
+                if ($_.Exception.InnerException) {
+                    Write-StatusMessage "Inner error: $($_.Exception.InnerException.Message)" -Type Error
+                }
+                exit 1
+            }
+        }
+        
+        $deploymentParams = @{
+            ResourceGroupName = $ResourceGroupName
+            TemplateFile = $bicepTemplate
+            TemplateParameterFile = $bicepParamFile
+            ErrorAction = 'Stop'
+            # Add deployment name for easier tracking
+            Name = "MainDeployment-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        }
+        
+        if ($Debug) {
+            $deploymentParams['DeploymentDebugLogLevel'] = "All"
+        }
+        
+        $deployment = New-AzResourceGroupDeployment @deploymentParams
+        if ($deployment.ProvisioningState -eq "Succeeded") {
+            Write-StatusMessage "Global infrastructure deployment succeeded!" -Type Success
         } else {
-            Write-StatusMessage "Resource group $resourceGroupName already exists." -Type Info
+            Write-StatusMessage "Global infrastructure deployment failed. Status: $($deployment.ProvisioningState)" -Type Error
+            exit 1
         }
     } catch {
-        Write-StatusMessage "Failed to create or check resource group $resourceGroupName. Error: $_" -Type Error
-        Write-StatusMessage "Make sure you're logged into Azure with the correct subscription." -Type Warning
-        continue
-    }
-    
-    # Deploy the Bicep template for this region
-    if ($WhatIf) {
-        Write-StatusMessage "Validating deployment for region $region (what-if)..." -Type Info
+        Write-StatusMessage "Failed to deploy global infrastructure. Error: $_" -Type Error
+        
+        # Extract detailed error information
+        Write-StatusMessage "Attempting to extract detailed error information..." -Type Warning
+        
         try {
-            $whatIfParams = @{
-                ResourceGroupName = $resourceGroupName
-                TemplateFile = $bicepTemplate
-                TemplateParameterFile = $bicepParamFile
-                currentRegion = $region
-                WhatIf = $true
-                ErrorAction = 'Stop'
+            if ($_.Exception.Message -match "tracking id is '([^']+)'") {
+                $trackingId = $matches[1]
+                Write-StatusMessage "Deployment tracking ID: $trackingId" -Type Info
             }
-            Write-StatusMessage "Using parameters: $(ConvertTo-Json $whatIfParams -Compress)" -Type Info
-            $whatIfResult = New-AzResourceGroupDeployment @whatIfParams
-            Write-StatusMessage "What-If validation completed for region $region." -Type Success
+
+            # Try to parse error details from exception message
+            if ($_.Exception.Message -like "*See inner errors for details*") {
+                Write-StatusMessage "Extracting inner error details:" -Type Warning
+                
+                # Get detailed error information
+                $errorDetails = $null
+                $errorRecord = $_
+                
+                # Attempt to get inner exception details
+                if ($errorRecord.Exception.InnerException) {
+                    Write-StatusMessage "Inner Exception: $($errorRecord.Exception.InnerException.Message)" -Type Error
+                }
+                
+                # Try to get error details from response content if available
+                if ($errorRecord.Exception.PSObject.Properties.Name -contains 'Response') {
+                    $response = $errorRecord.Exception.Response
+                    if ($response) {
+                        $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+                        $reader.BaseStream.Position = 0
+                        $reader.DiscardBufferedData()
+                        $responseBody = $reader.ReadToEnd()
+                        if ($responseBody) {
+                            Write-StatusMessage "Response Body:" -Type Error
+                            Write-StatusMessage $responseBody -Type Error
+                        }
+                    }
+                }
+            }
         } catch {
-            Write-StatusMessage "What-If validation failed for region $region. Error: $_" -Type Error
-            continue
+            Write-StatusMessage "Failed to extract detailed error information. Original error remains." -Type Warning
         }
-    } else {
-        Write-StatusMessage "Starting deployment of infrastructure to $resourceGroupName (region: $region)..." -Type Info
-        try {
-            $deploymentParams = @{
-                ResourceGroupName = $resourceGroupName
-                TemplateFile = $bicepTemplate
-                TemplateParameterFile = $bicepParamFile
-                currentRegion = $region
-                ErrorAction = 'Stop'
-            }
-            $deployment = New-AzResourceGroupDeployment @deploymentParams
-            if ($deployment.ProvisioningState -eq "Succeeded") {
-                Write-StatusMessage "Deployment to $region succeeded!" -Type Success
-            } else {
-                Write-StatusMessage "Deployment to $region failed. Status: $($deployment.ProvisioningState)" -Type Error
-            }
-        } catch {
-            Write-StatusMessage "Failed to deploy to $region. Error: $_" -Type Error
-            continue
-        }
+        
+        # Suggest troubleshooting steps
+        Write-StatusMessage "`nTroubleshooting suggestions:" -Type Info
+        Write-StatusMessage "1. Check if your main.bicep file has any syntax errors" -Type Info
+        Write-StatusMessage "2. Verify all required parameters are provided in $bicepParamFile" -Type Info
+        Write-StatusMessage "3. Check Azure subscription permissions" -Type Info
+        Write-StatusMessage "4. Run the script again with -Debug to get more detailed logs" -Type Info
+        Write-StatusMessage "5. Try a test deployment with only essential resources to isolate the issue" -Type Info
+        
+        exit 1
     }
 }
 

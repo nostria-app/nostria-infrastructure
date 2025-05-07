@@ -6,7 +6,7 @@ param appServicePlanId string
 
 // Create App Service managed certificate if custom domain is provided
 resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = {
-  name: '${name}-${replace(customDomainName, '.', '-')}-cert'
+  name: '${name}-cert'
   location: location
   properties: {
     serverFarmId: appServicePlanId

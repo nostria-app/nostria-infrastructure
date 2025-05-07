@@ -1,38 +1,45 @@
+@description('The current region being deployed (e.g., "eu", "af")')
+param currentRegion string
+
 param location string = resourceGroup().location
 param baseAppName string = 'nostria'
+param defaultRelayCount int = 1
+param defaultMediaCount int = 1
+@description('Array of region codes where to deploy resources (e.g., ["eu", "af"])')
+param deployRegions array = ['eu', 'af']
+@description('Object defining the number of relay servers per region. Example: {"eu": 2, "af": 1}')
+param relayCountPerRegion object = {}
+@description('Object defining the number of media servers per region. Example: {"eu": 2, "af": 1}')
+param mediaCountPerRegion object = {}
 
-// Parameters for configuring app instances
-param relayCount int = 1
-param mediaCount int = 1
+@description('Array of relay server names')
+param relayNames array
+@description('Array of media server names')
+param mediaNames array
 
-// Server name arrays - adding missing commas between array entries
-var relayNames = [
-  'Ribo', 'Rilo', 'Rifu', 'Rixi', 'Rova', 'Ryma', 'Robo', 'Ruku', 'Raze', 'Ruby'
-  'Ramu', 'Rizo', 'Rika', 'Rulo', 'Ruvi', 'Rino', 'Riby', 'Rask', 'Rofo', 'Rilz'
-  'Rudo', 'Remo', 'Rinz', 'Rupi', 'Rozi', 'Ruco', 'Rima', 'Ropi', 'Ruzo', 'Riku'
-  'Riry', 'Riso', 'Ruzz', 'Ropo', 'Ruzi', 'Rilv', 'Rork', 'Ramy', 'Rozo', 'Rimp'
-  'Runo', 'Ripp', 'Rino', 'Riko', 'Rufo', 'Repo', 'Romy', 'Rilz', 'Raku', 'Rumo'
-]
+var isPrimaryRegion = currentRegion == 'eu'
 
-var mediaNames = [
-  'Mibo', 'Milo', 'Mifu', 'Mixi', 'Mova', 'Myma', 'Mobo', 'Muku', 'Maze', 'Miby'
-  'Mamu', 'Mizo', 'Mika', 'Mulo', 'Muvi', 'Mino', 'Miby', 'Mask', 'Mofo', 'Milz'
-  'Mudo', 'Memo', 'Minz', 'Mupi', 'Mozi', 'Muco', 'Mima', 'Mopi', 'Muzo', 'Miku'
-  'Miry', 'Miso', 'Muzz', 'Mopo', 'Muzi', 'Milv', 'Mork', 'Mamy', 'Mozo', 'Mimp'
-  'Muno', 'Mipp', 'Mino', 'Miko', 'Mufo', 'Mepo', 'Momy', 'Milz', 'Maku', 'Mumo'
-]
-
-// Deploy the main App Service Plan for all container apps
-module appServicePlan 'modules/app-service-plan.bicep' = {
-  name: '${baseAppName}-plan-deployment'
+module regionConfig 'modules/region-mapping.bicep' = {
+  name: 'region-config-${currentRegion}'
   params: {
-    name: '${baseAppName}-plan'
+    regionCode: currentRegion
+  }
+}
+
+var relayCount = contains(relayCountPerRegion, currentRegion) ? relayCountPerRegion[currentRegion] : defaultRelayCount
+var mediaCount = contains(mediaCountPerRegion, currentRegion) ? mediaCountPerRegion[currentRegion] : defaultMediaCount
+
+// Deploy App Service Plan for the current region
+module appServicePlan 'modules/app-service-plan.bicep' = {
+  name: '${baseAppName}-${currentRegion}-plan-deployment'
+  params: {
+    name: '${baseAppName}-${currentRegion}-plan'
     location: location
   }
 }
 
-// Deploy a centralized backup storage account - KEEPING THIS ONE
-module centralBackupStorage 'modules/central-backup.bicep' = {
+// Deploy a centralized backup storage account - ONLY IN PRIMARY REGION
+module centralBackupStorage 'modules/central-backup.bicep' = if (isPrimaryRegion) {
   name: '${baseAppName}-central-backup-deployment'
   params: {
     name: 'nostriabak'
@@ -40,15 +47,15 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
   }
 }
 
-// Discovery App (Single instance)
+// Deploy Discovery App for the current region
 module discoveryApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-discovery-app-deployment'
+  name: '${baseAppName}-discovery-${currentRegion}-app-deployment'
   params: {
-    name: 'nostria-discovery'
+    name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-    customDomainName: 'discovery.nostria.app'
+    customDomainName: 'discovery-${currentRegion}.nostria.app'
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -78,144 +85,44 @@ module discoveryApp 'modules/container-app.bicep' = {
         name: 'Relay__PrivacyPolicy'
         value: 'https://discovery.nostria.com/privacy-policy'
       }
+      {
+        name: 'Relay__Region'
+        value: currentRegion
+      }
     ]
   }
 }
 
 // Certificate for Discovery App
 module discoveryAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-discovery-app-cert-deployment'
+  name: '${baseAppName}-discovery-${currentRegion}-app-cert-deployment'
   params: {
-    name: 'nostria-discovery'
+    name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'discovery.nostria.app'
+    customDomainName: 'discovery-${currentRegion}.nostria.app'
     containerAppId: discoveryApp.outputs.id
   }
   dependsOn: [discoveryApp]
 }
 
-// Website App (Single instance)
-module websiteApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-website-app-deployment'
-  params: {
-    name: 'nostria-website'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-website:latest'
-    customDomainName: 'www.nostria.app'
-    appSettings: []
-  }
-}
-
-// Certificate for Website App
-module websiteAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-website-app-cert-deployment'
-  params: {
-    name: 'nostria-website'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'www.nostria.app'
-    containerAppId: websiteApp.outputs.id
-  }
-  dependsOn: [websiteApp]
-}
-
-// Main App (Single instance)
-module mainApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-main-app-deployment'
-  params: {
-    name: 'nostria-app'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria:latest'
-    customDomainName: 'nostria.app'
-    appSettings: []
-  }
-}
-
-// Certificate for Main App
-module mainAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-main-app-cert-deployment'
-  params: {
-    name: 'nostria-app'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'nostria.app'
-    containerAppId: mainApp.outputs.id
-  }
-  dependsOn: [mainApp]
-}
-
-// Metadata App (Single instance)
-module metadataApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-metadata-app-deployment'
-  params: {
-    name: 'nostria-metadata'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-metadata:latest'
-    customDomainName: 'metadata.nostria.app'
-    appSettings: []
-  }
-}
-
-// Certificate for Metadata App
-module metadataAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-metadata-app-cert-deployment'
-  params: {
-    name: 'nostria-metadata'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'metadata.nostria.app'
-    containerAppId: metadataApp.outputs.id
-  }
-  dependsOn: [metadataApp]
-}
-
-// status App (Single instance)
-module statusApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-status-app-deployment'
-  params: {
-    name: 'nostria-status'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
-    customDomainName: 'status.nostria.app'
-    appSettings: []
-  }
-}
-
-// Certificate for status App
-module statusAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-status-app-cert-deployment'
-  params: {
-    name: 'nostria-status'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'status.nostria.app'
-    containerAppId: statusApp.outputs.id
-  }
-  dependsOn: [statusApp]
-}
-
-// Relay Apps (Multiple instances based on relayCount)
+// Deploy Relay Apps for the current region
 module relayStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${toLower(relayNames[i])}-storage-deployment'
+  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-storage-deployment'
   params: {
-    name: '${toLower(replace(relayNames[i], '-', ''))}sa'
+    name: '${toLower(replace(relayNames[i], '-', ''))}${currentRegion}sa'
     location: location
   }
 }]
 
 module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${toLower(relayNames[i])}-deployment'
+  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-deployment'
   params: {
-    name: 'nostria-${toLower(relayNames[i])}'
+    name: 'nostria-${toLower(relayNames[i])}-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-relay:latest'
-    customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    customDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
     storageAccountName: relayStorageAccounts[i].outputs.name
     appSettings: [
       {
@@ -229,6 +136,10 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
       {
         name: 'Relay__PrivacyPolicy'
         value: 'https://relay.nostria.com/privacy-policy'
+      }
+      {
+        name: 'Relay__Region'
+        value: currentRegion
       }
       {
         name: 'Lmdb__DatabasePath'
@@ -249,7 +160,7 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
 
 // Assign Storage File Data SMB Share Contributor role to relay apps
 module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${toLower(relayNames[i])}-role-assignment'
+  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-role-assignment'
   params: {
     storageAccountName: relayStorageAccounts[i].outputs.name
     principalId: relayApps[i].outputs.webAppPrincipalId
@@ -259,12 +170,12 @@ module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in r
 
 // Certificates for Relay Apps
 module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${toLower(relayNames[i])}-cert-deployment'
+  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-cert-deployment'
   params: {
-    name: 'nostria-${toLower(relayNames[i])}'
+    name: 'nostria-${currentRegion}-${toLower(relayNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: '${toLower(relayNames[i])}.nostria.app'
+    customDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
     containerAppId: relayApps[i].outputs.id
   }
   dependsOn: [relayApps]
@@ -272,20 +183,20 @@ module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in rang
 
 // Media Apps (Multiple instances based on mediaCount) using docker-compose
 module mediaStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${toLower(mediaNames[i])}-storage-deployment'
+  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-storage-deployment'
   params: {
-    name: '${toLower(replace(mediaNames[i], '-', ''))}sa'
+    name: '${toLower(replace(mediaNames[i], '-', ''))}${currentRegion}sa'
     location: location
   }
 }]
 
 module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${toLower(mediaNames[i])}-deployment'
+  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-deployment'
   params: {
-    name: 'nostria-${toLower(mediaNames[i])}'
+    name: 'nostria-${toLower(mediaNames[i])}-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
     storageAccountName: mediaStorageAccounts[i].outputs.name
     dockerComposeYaml: '''
 version: '3'
@@ -322,6 +233,10 @@ services:
         name: 'Media__PrivacyPolicy'
         value: 'https://media.nostria.com/privacy-policy'
       }
+      {
+        name: 'Media__Region'
+        value: currentRegion
+      }
     ]
   }
   dependsOn: [mediaStorageAccounts]
@@ -329,7 +244,7 @@ services:
 
 // Assign Storage File Data SMB Share Contributor role to media apps
 module mediaStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${toLower(mediaNames[i])}-role-assignment'
+  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-role-assignment'
   params: {
     storageAccountName: mediaStorageAccounts[i].outputs.name
     principalId: mediaApps[i].outputs.webAppPrincipalId
@@ -339,12 +254,12 @@ module mediaStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in r
 
 // Certificates for Media Apps
 module mediaAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${toLower(mediaNames[i])}-cert-deployment'
+  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-cert-deployment'
   params: {
-    name: 'nostria-${toLower(mediaNames[i])}'
+    name: 'nostria-${currentRegion}-${toLower(mediaNames[i])}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: '${toLower(mediaNames[i])}.nostria.app'
+    customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
     containerAppId: mediaApps[i].outputs.id
   }
   dependsOn: [mediaApps]
@@ -353,10 +268,16 @@ module mediaAppsCerts 'modules/container-app-certificate.bicep' = [for i in rang
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
-output centralBackupStorageName string = centralBackupStorage.outputs.name
-output centralBackupShareName string = centralBackupStorage.outputs.fileShareName
-output discoveryAppUrl string = 'https://${discoveryApp.outputs.hostname}'
-output websiteAppUrl string = 'https://${websiteApp.outputs.hostname}'
-output mainAppUrl string = 'https://${mainApp.outputs.hostname}'
-output relayAppUrls array = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.nostria.app']
-output mediaAppUrls array = [for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}.nostria.app']
+
+// Discovery app URL for the current region
+output discoveryAppUrl string = 'https://discovery-${currentRegion}.nostria.app'
+
+// Only output these if primary region (eu)
+output centralBackupStorageName string = isPrimaryRegion ? centralBackupStorage.outputs.name : ''
+output centralBackupShareName string = isPrimaryRegion ? centralBackupStorage.outputs.fileShareName : ''
+
+// Relay URLs for the current region
+output relayAppUrls array = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}-${currentRegion}.nostria.app']
+
+// Media URLs for the current region
+output mediaAppUrls array = [for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}-${currentRegion}.nostria.app']

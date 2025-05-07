@@ -1,120 +1,184 @@
-name: Deploy Infrastructure
+name: Deploy Nostria Infrastructure
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - 'bicep/**'
-      - 'scripts/**'
       - '.github/workflows/deploy-infrastructure.yml'
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - 'bicep/**'
-      - 'scripts/**'
-      - '.github/workflows/deploy-infrastructure.yml'
   workflow_dispatch:
     inputs:
-      resourceGroupName:
-        description: 'Azure Resource Group Name'
-        required: true
-        default: 'nostria'
-      location:
-        description: 'Azure Location'
-        required: true
-        default: 'westeurope'
-      relayCount:
-        description: 'Number of relay instances to deploy'
-        required: true
-        default: '1'
-      mediaCount:
-        description: 'Number of media instances to deploy'
-        required: true
-        default: '1'
+      regions:
+        description: 'Regions to deploy (comma-separated, e.g., "eu,af")'
+        required: false
+        default: 'eu,af'
+      whatIf:
+        description: 'Run in What-If mode (no actual deployment)'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  BICEP_PATH: ./bicep
 
 jobs:
-  deploy:
+  validate:
+    name: Validate Bicep Templates
     runs-on: ubuntu-latest
-    environment: production
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+        shell: bash
+      - name: Validate Bicep files
+        run: |
+          bicep build ${{ env.BICEP_PATH }}/main.bicep --stdout > /dev/null
+          if [ $? -eq 0 ]; then
+            echo "✅ Bicep validation passed"
+            exit 0
+          else
+            echo "❌ Bicep validation failed"
+            exit 1
+          fi
+        shell: bash
 
-      # - name: Set up Azure PowerShell module
-      #   uses: azure/powershell@v2
-      #   with:
-      #     azPSVersion: 'latest'
-
-      - name: Login to Azure
-        uses: azure/login@v1
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        region: ${{ github.event.inputs.regions && github.event.inputs.regions != '' ? split(github.event.inputs.regions, ',') : fromJson('["eu","af"]') }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Infrastructure
-        uses: azure/powershell@v2
-        with:
-          inlineScript: |
-            $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
-            $location = "${{ github.event.inputs.location || 'westeurope' }}"
-            $relayCount = "${{ github.event.inputs.relayCount || '1' }}"
-            $mediaCount = "${{ github.event.inputs.mediaCount || '1' }}"
-            
-            Write-Host "Deploying infrastructure to resource group: $resourceGroupName in location: $location"
-            Write-Host "Relay Count: $relayCount, Media Count: $mediaCount"
-            
-            ./scripts/deploy.ps1 -ResourceGroupName $resourceGroupName -Location $location -RelayCount $relayCount -MediaCount $mediaCount
-          azPSVersion: 'latest'
-          
-      - name: Log Deployment Results
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Install PowerShell modules
         shell: pwsh
         run: |
-          $resourceGroupName = "${{ github.event.inputs.resourceGroupName || 'nostria' }}"
-          Write-Host "Deployment to $resourceGroupName completed"
+          Install-Module -Name Az -Scope CurrentUser -Repository PSGallery -Force
+      - name: Install Bicep CLI
+        run: |
+          curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x ./bicep
+          sudo mv ./bicep /usr/local/bin/bicep
+          bicep --version
+        shell: bash
+      - name: Create Resource Group and Deploy to ${{ matrix.region }} Region
+        shell: pwsh
+        run: |
+          $region = "${{ matrix.region }}"
+          $resourceGroupName = "nostria-$region"
+          $whatIf = "${{ github.event.inputs.whatIf }}" -eq "true"
           
-          # Get deployment status using Azure CLI - improved query
-          Write-Host "Checking deployment status..."
-          $deploymentsJson = az deployment group list --resource-group $resourceGroupName --output json
-          $deployments = $deploymentsJson | ConvertFrom-Json
+          # Get absolute paths to templates
+          $repoRoot = $env:GITHUB_WORKSPACE
+          $bicepTemplate = Join-Path -Path $repoRoot -ChildPath "bicep/main.bicep"
+          $bicepParamFile = Join-Path -Path $repoRoot -ChildPath "bicep/main.bicepparam"
           
-          if ($deployments.Count -eq 0) {
-            Write-Host "❌ No deployments found in resource group $resourceGroupName"
-            exit 1
+          # Verify template files exist
+          if (-not (Test-Path -Path $bicepTemplate)) {
+              Write-Host "::error::Template file not found: $bicepTemplate"
+              exit 1
           }
           
-          # Get the most recent deployment (by timestamp instead of name)
-          $latestDeployment = $deployments | Sort-Object -Property properties.timestamp -Descending | Select-Object -First 1
+          if (-not (Test-Path -Path $bicepParamFile)) {
+              Write-Host "::error::Parameter file not found: $bicepParamFile"
+              exit 1
+          }
           
-          if ($latestDeployment) {
-            Write-Host "Latest deployment: $($latestDeployment.name), status: $($latestDeployment.properties.provisioningState)"
-            
-            # Display more detailed information about the deployment
-            Write-Host "Deployment timestamp: $($latestDeployment.properties.timestamp)"
-            Write-Host "Deployment correlation ID: $($latestDeployment.properties.correlationId)"
-            
-            if ($latestDeployment.properties.provisioningState -eq "Succeeded") {
-              Write-Host "✅ Deployment succeeded"
-              exit 0
-            } else {
-              # Check if the deployment is still in progress
-              if ($latestDeployment.properties.provisioningState -eq "Running") {
-                Write-Host "⏳ Deployment is still in progress"
-                exit 0  # Don't fail the workflow if deployment is still running
-              } else {
-                Write-Host "❌ Deployment failed with status: $($latestDeployment.properties.provisioningState)"
-                
-                # Try to get error details if available
-                if ($latestDeployment.properties.error) {
-                  Write-Host "Error code: $($latestDeployment.properties.error.code)"
-                  Write-Host "Error message: $($latestDeployment.properties.error.message)"
-                }
-                
-                exit 1
-              }
-            }
+          Write-Host "Using template: $bicepTemplate"
+          Write-Host "Using parameters: $bicepParamFile"
+          
+          # Map region code to Azure location
+          $regionLocationMap = @{
+            "eu" = "westeurope"; "af" = "southafricanorth"; "us" = "centralus"; 
+            "as" = "southeastasia"; "sa" = "brazilsouth"; "au" = "australiaeast"; 
+            "jp" = "japaneast"; "cn" = "chinanorth"; "in" = "centralindia"; 
+            "me" = "uaenorth"
+          }
+          $location = $regionLocationMap[$region]
+          if (-not $location) { $location = "westeurope" }
+          
+          # Create resource group if it doesn't exist
+          $rg = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
+          if (-not $rg) {
+            Write-Host "Creating resource group $resourceGroupName in $location..."
+            New-AzResourceGroup -Name $resourceGroupName -Location $location
+            Write-Host "Resource group created."
           } else {
-            Write-Host "❌ No deployment found"
-            exit 1
+            Write-Host "Resource group already exists."
           }
+          
+          # Deploy to the region
+          if ($whatIf) {
+            Write-Host "Running in What-If mode (no actual deployment)"
+            New-AzResourceGroupDeployment `
+              -ResourceGroupName $resourceGroupName `
+              -TemplateFile $bicepTemplate `
+              -TemplateParameterFile $bicepParamFile `
+              -currentRegion $region `
+              -WhatIf
+          } else {
+            Write-Host "Starting deployment"
+            $deployment = New-AzResourceGroupDeployment `
+              -ResourceGroupName $resourceGroupName `
+              -TemplateFile $bicepTemplate `
+              -TemplateParameterFile $bicepParamFile `
+              -currentRegion $region
+            if ($deployment.ProvisioningState -eq "Succeeded") {
+              Write-Host "✅ Deployment to $region succeeded!"
+            } else {
+              Write-Host "❌ Deployment to $region failed with status: $($deployment.ProvisioningState)"
+              exit 1
+            }
+          }
+
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Nostria Infrastructure Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment completed at $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "✅ **Deployment Status**: Successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Deployment Status**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployed Regions" >> $GITHUB_STEP_SUMMARY
+          REGIONS="${{ github.event.inputs.regions }}"
+          if [ -z "$REGIONS" ]; then
+            REGIONS="eu,af"
+          fi
+          IFS=',' read -ra REGION_ARRAY <<< "$REGIONS"
+          for region in "${REGION_ARRAY[@]}"; do
+            echo "- $region" >> $GITHUB_STEP_SUMMARY
+          done
+        shell: bash

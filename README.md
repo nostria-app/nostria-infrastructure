@@ -38,7 +38,8 @@ Set-AzContext -SubscriptionId "<your-subscription-id>"
 Use the `deploy.ps1` script to deploy the entire infrastructure:
 
 ```powershell
-./scripts/deploy.ps1 -ResourceGroupName "nostria" -Location "westeurope"
+ ./scripts/deploy-main.ps1
+ ./scripts/deploy-region.ps1 -Regions eu,af
 ```
 
 Parameters:

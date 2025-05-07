@@ -31,9 +31,9 @@ var mediaCount = contains(mediaCountPerRegion, currentRegion) ? mediaCountPerReg
 
 // Deploy App Service Plan for the current region
 module appServicePlan 'modules/app-service-plan.bicep' = {
-  name: '${baseAppName}-${currentRegion}-plan-deployment'
+  name: '${baseAppName}-plan-${currentRegion}-deployment'
   params: {
-    name: '${baseAppName}-${currentRegion}-plan'
+    name: '${baseAppName}-plan-${currentRegion}'
     location: location
   }
 }
@@ -49,7 +49,7 @@ module centralBackupStorage 'modules/central-backup.bicep' = if (isPrimaryRegion
 
 // Deploy Discovery App for the current region
 module discoveryApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-discovery-${currentRegion}-app-deployment'
+  name: '${baseAppName}-discovery-app-${currentRegion}-deployment'
   params: {
     name: 'nostria-discovery-${currentRegion}'
     location: location
@@ -95,7 +95,7 @@ module discoveryApp 'modules/container-app.bicep' = {
 
 // Certificate for Discovery App
 module discoveryAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-discovery-${currentRegion}-app-cert-deployment'
+  name: '${baseAppName}-discovery-app-${currentRegion}-cert-deployment'
   params: {
     name: 'nostria-discovery-${currentRegion}'
     location: location
@@ -108,7 +108,7 @@ module discoveryAppCert 'modules/container-app-certificate.bicep' = {
 
 // Deploy Relay Apps for the current region
 module relayStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-storage-deployment'
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-${currentRegion}-storage-deployment'
   params: {
     name: '${toLower(replace(relayNames[i], '-', ''))}${currentRegion}sa'
     location: location
@@ -116,7 +116,7 @@ module relayStorageAccounts 'modules/storage-account.bicep' = [for i in range(0,
 }]
 
 module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-deployment'
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-${currentRegion}-deployment'
   params: {
     name: 'nostria-${toLower(relayNames[i])}-${currentRegion}'
     location: location
@@ -160,7 +160,7 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
 
 // Assign Storage File Data SMB Share Contributor role to relay apps
 module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-role-assignment'
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-${currentRegion}-role-assignment'
   params: {
     storageAccountName: relayStorageAccounts[i].outputs.name
     principalId: relayApps[i].outputs.webAppPrincipalId
@@ -170,9 +170,9 @@ module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in r
 
 // Certificates for Relay Apps
 module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, relayCount): {
-  name: '${baseAppName}-relay-${currentRegion}-${toLower(relayNames[i])}-cert-deployment'
+  name: '${baseAppName}-relay-${toLower(relayNames[i])}-${currentRegion}-cert-deployment'
   params: {
-    name: 'nostria-${currentRegion}-${toLower(relayNames[i])}'
+    name: 'nostria-${toLower(relayNames[i])}-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
@@ -183,7 +183,7 @@ module relayAppsCerts 'modules/container-app-certificate.bicep' = [for i in rang
 
 // Media Apps (Multiple instances based on mediaCount) using docker-compose
 module mediaStorageAccounts 'modules/storage-account.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-storage-deployment'
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-${currentRegion}-storage-deployment'
   params: {
     name: '${toLower(replace(mediaNames[i], '-', ''))}${currentRegion}sa'
     location: location
@@ -191,7 +191,7 @@ module mediaStorageAccounts 'modules/storage-account.bicep' = [for i in range(0,
 }]
 
 module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-deployment'
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-${currentRegion}-deployment'
   params: {
     name: 'nostria-${toLower(mediaNames[i])}-${currentRegion}'
     location: location
@@ -244,7 +244,7 @@ services:
 
 // Assign Storage File Data SMB Share Contributor role to media apps
 module mediaStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-role-assignment'
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-${currentRegion}-role-assignment'
   params: {
     storageAccountName: mediaStorageAccounts[i].outputs.name
     principalId: mediaApps[i].outputs.webAppPrincipalId
@@ -254,9 +254,9 @@ module mediaStorageRoleAssignments 'modules/role-assignment.bicep' = [for i in r
 
 // Certificates for Media Apps
 module mediaAppsCerts 'modules/container-app-certificate.bicep' = [for i in range(0, mediaCount): {
-  name: '${baseAppName}-media-${currentRegion}-${toLower(mediaNames[i])}-cert-deployment'
+  name: '${baseAppName}-media-${toLower(mediaNames[i])}-${currentRegion}-cert-deployment'
   params: {
-    name: 'nostria-${currentRegion}-${toLower(mediaNames[i])}'
+    name: 'nostria-${toLower(mediaNames[i])}-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'

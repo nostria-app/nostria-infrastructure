@@ -35,6 +35,15 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
   }
 }
 
+// Deploy Storage Account for Discovery App
+module discoveryStorageAccount 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-discovery-${currentRegion}-storage-deployment'
+  params: {
+    name: 'nostriadiscovery${currentRegion}sa'
+    location: location
+  }
+}
+
 // Deploy Discovery App for the current region
 module discoveryApp 'modules/container-app-compose.bicep' = {
   name: '${baseAppName}-discovery-app-${currentRegion}-deployment'
@@ -43,11 +52,12 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'discovery-${currentRegion}.nostria.app'
+    storageAccountName: discoveryStorageAccount.outputs.name
     dockerComposeYaml: '''
     version: '3'
     services:
       media-app:
-        image: ghcr.io/nostria-app/nostria-relay:latest
+        image: ghcr.io/nostria-app/discovery-relay:latest
         restart: always
         ports:
           - "3000:3000"
@@ -95,6 +105,16 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
     ]
   }
   dependsOn: [discoveryStorageAccount]
+}
+
+// Assign Storage File Data SMB Share Contributor role to discovery app
+module discoveryStorageRoleAssignment 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-discovery-${currentRegion}-role-assignment'
+  params: {
+    storageAccountName: discoveryStorageAccount.outputs.name
+    principalId: discoveryApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [discoveryApp, discoveryStorageAccount]
 }
 
 // Certificate for Discovery App

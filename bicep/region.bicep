@@ -45,30 +45,15 @@ module discoveryStorageAccount 'modules/storage-account.bicep' = {
 }
 
 // Deploy Discovery App for the current region
-module discoveryApp 'modules/container-app-compose.bicep' = {
+module discoveryApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-discovery-app-${currentRegion}-deployment'
   params: {
     name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'discovery-${currentRegion}.nostria.app'
+    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     storageAccountName: discoveryStorageAccount.outputs.name
-    dockerComposeYaml: '''
-    version: '3'
-    services:
-      media-app:
-        image: ghcr.io/nostria-app/discovery-relay:latest
-        restart: always
-        ports:
-          - "3000:3000"
-        environment:
-          - Media__StoragePath=./data
-          - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
-          - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
-          - Media__Region=${currentRegion}
-        volumes:
-          - ${WEBAPP_STORAGE_HOME}/data:/app/data
-    '''
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -80,7 +65,7 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
       }
       {
         name: 'Lmdb__DatabasePath'
-        value: './data'
+        value: '/home/data'
       }
       {
         name: 'Lmdb__SizeInMb'

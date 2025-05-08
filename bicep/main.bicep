@@ -20,10 +20,10 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
 }
 
 // Deploy storage account for status app data
-module mainStorage 'modules/storage-account.bicep' = {
+module statusStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-storage-deployment'
   params: {
-    name: 'nostriasa'
+    name: 'nostriastatussa'
     location: location
   }
 }
@@ -115,7 +115,7 @@ module statusApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
     customDomainName: 'status.nostria.app'
-    storageAccountName: mainStorage.outputs.name
+    storageAccountName: statusStorage.outputs.name
     appSettings: [
       {
         name: 'DB_PATH'
@@ -137,10 +137,10 @@ module statusApp 'modules/container-app.bicep' = {
 module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
   name: '${baseAppName}-status-storage-role-assignment'
   params: {
-    storageAccountName: mainStorage.outputs.name
+    storageAccountName: statusStorage.outputs.name
     principalId: statusApp.outputs.webAppPrincipalId
   }
-  dependsOn: [statusApp, mainStorage]
+  dependsOn: [statusApp, statusStorage]
 }
 
 // Assign storage role to the status app

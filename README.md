@@ -172,6 +172,9 @@ az ad sp list | ConvertFrom-Json | Where-Object { $_.servicePrincipalType -ne "A
 az ad sp create-for-rbac --name "nostria-deployment" --role contributor --scopes /subscriptions/<your-subscription-id> --sdk-auth > ./github-actions-credentials.json
 ```
 
+After a lot of issues with mapping volumes to the container, it was discovered that it's not really needed. As long as the apps within the container can take configurations from environment variables, we can set that to /home/data which is then mapped in the setup.
+
+
 ### TODO:
 
 https://azure.github.io/AppService/2025/04/01/Docker-compose-migration.html

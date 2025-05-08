@@ -1,26 +1,27 @@
 name: Deploy Nostria Infrastructure
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'bicep/**'
-      - '.github/workflows/deploy-infrastructure.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'bicep/**'
   workflow_dispatch:
-    inputs:
-      regions:
-        description: 'Regions to deploy (comma-separated, e.g., "eu,af")'
-        required: false
-        default: 'eu,af'
-      whatIf:
-        description: 'Run in What-If mode (no actual deployment)'
-        type: boolean
-        required: false
-        default: false
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'bicep/**'
+  #     - '.github/workflows/deploy-infrastructure.yml'
+  # pull_request:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'bicep/**'
+
+  #   inputs:
+  #     regions:
+  #       description: 'Regions to deploy (comma-separated, e.g., "eu,af")'
+  #       required: false
+  #       default: 'eu,af'
+  #     whatIf:
+  #       description: 'Run in What-If mode (no actual deployment)'
+  #       type: boolean
+  #       required: false
+  #       default: false
 
 permissions:
   id-token: write

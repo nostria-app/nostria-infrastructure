@@ -67,7 +67,7 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
           - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
           - Media__Region=${currentRegion}
         volumes:
-          - ${WEBAPP_STORAGE_HOME}/data/:/app/data
+          - /home/data:/app/data
     '''
     appSettings: [
       {
@@ -237,7 +237,7 @@ services:
       - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
       - Media__Region=${currentRegion}
     volumes:
-      - ${WEBAPP_STORAGE_HOME}/data/:/app/data
+      - /home/data:/app/data
 '''
     appSettings: [
       {

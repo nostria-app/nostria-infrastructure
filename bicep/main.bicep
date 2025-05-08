@@ -119,7 +119,7 @@ module statusApp 'modules/container-app.bicep' = {
     appSettings: [
       {
         name: 'DB_PATH'
-        value: '/home/data'
+        value: '/app/data'
       }
       {
         name: 'DATA_RETENTION_DAYS'

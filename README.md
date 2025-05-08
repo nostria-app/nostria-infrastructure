@@ -177,7 +177,7 @@ After a lot of issues with mapping volumes to the container, it was discovered t
 Instead of overriding the volume mapping in the container, we can also map the default paths to the Azure File Share.
 
 nostria-media: /app/data
-nostria-status: usr/src/app/data
+nostria-status: /app/data
 nostria-discovery: app/data
 nostria-relay: /app/strfry-db and /etc/strfry.conf
 

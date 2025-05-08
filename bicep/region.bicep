@@ -189,6 +189,7 @@ module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, medi
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
     storageAccountName: mediaStorageAccounts[i].outputs.name
+    configYmlContent: loadTextContent('../config/media/config.yml')
     dockerComposeYaml: '''
 version: '3'
 services:
@@ -203,8 +204,8 @@ services:
       - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
       - Media__Region=${currentRegion}
     volumes:
-      - ${WEBAPP_STORAGE_HOME}/data:/app/data
-      - ${WEBAPP_STORAGE_HOME}/data/config.yml:/app/config.yml
+      - ${WEBAPP_STORAGE_HOME}/data/:/app/data
+      - ${WEBAPP_STORAGE_HOME}/data/:/app/config.yml
 '''
     appSettings: [
       {

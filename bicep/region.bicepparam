@@ -2,18 +2,18 @@ using './region.bicep'
 
 param currentRegion = 'eu'
 param baseAppName = 'nostria'
-param defaultRelayCount = 2
+param defaultRelayCount = 1
 param defaultMediaCount = 1
 param deployRegions = [
   'eu'
   'af'
 ]
 param relayCountPerRegion = {
-  eu: 3
+  eu: 1
   af: 1
 }
 param mediaCountPerRegion = {
-  eu: 2
+  eu: 1
   af: 1
 }
 

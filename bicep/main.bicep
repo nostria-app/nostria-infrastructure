@@ -106,7 +106,20 @@ module statusApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
     customDomainName: 'status.nostria.app'
-    appSettings: []
+    appSettings: [
+      {
+        name: 'DB_PATH'
+        value: '/home/data'
+      }
+      {
+        name: 'DATA_RETENTION_DAYS'
+        value: '14'
+      }
+      {
+        name: 'CHECK_INTERVAL_MS'
+        value: '600000'
+      }
+    ]
   }
 }
 

@@ -5,8 +5,7 @@ param location string = resourceGroup().location
 param baseAppName string = 'nostria'
 param defaultRelayCount int = 1
 param defaultMediaCount int = 1
-@description('Array of region codes where to deploy resources (e.g., ["eu", "af"])')
-param deployRegions array = ['eu', 'af']
+
 @description('Object defining the number of relay servers per region. Example: {"eu": 2, "af": 1}')
 param relayCountPerRegion object = {}
 @description('Object defining the number of media servers per region. Example: {"eu": 2, "af": 1}')
@@ -16,8 +15,6 @@ param mediaCountPerRegion object = {}
 param relayNames array
 @description('Array of media server names')
 param mediaNames array
-
-var isPrimaryRegion = currentRegion == 'eu'
 
 module regionConfig 'modules/region-mapping.bicep' = {
   name: 'region-config-${currentRegion}'

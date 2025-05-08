@@ -168,6 +168,10 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
                 name: 'WEBSITES_MOUNT_ENABLED'
                 value: '1' // Ensure storage mounting is explicitly enabled
               }
+              {
+                name: 'AZURE_STORAGE_AUTHENTICATION_TYPE'
+                value: 'ManagedIdentity'
+              }
             ]
           : []
       )
@@ -175,12 +179,11 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
       // Configure Azure Storage mount when storage account name is provided
       azureStorageAccounts: !empty(storageAccountName)
         ? {
-            media: {
+            data: {
               type: 'AzureFiles'
               accountName: storageAccountName
               mountPath: '/data'
               shareName: 'data'
-              accessKey: storageAccountKey // Required for initial mount, app will use managed identity later
             }
           }
         : {}
@@ -189,6 +192,14 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   dependsOn: [
     configFile
   ]
+}
+
+resource slotConfig 'Microsoft.Web/sites/config@2022-09-01' = {
+  parent: containerApp
+  name: 'slotConfigNames'
+  properties: {
+    azureStorageConfigNames: ['data']
+  }
 }
 
 // Hostname binding for custom domain

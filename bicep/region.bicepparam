@@ -4,10 +4,7 @@ param currentRegion = 'eu'
 param baseAppName = 'nostria'
 param defaultRelayCount = 1
 param defaultMediaCount = 1
-param deployRegions = [
-  'eu'
-  'af'
-]
+
 param relayCountPerRegion = {
   eu: 1
   af: 1

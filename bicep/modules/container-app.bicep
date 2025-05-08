@@ -58,6 +58,14 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   }
 }
 
+resource slotConfig 'Microsoft.Web/sites/config@2022-09-01' = {
+  parent: containerApp
+  name: 'slotConfigNames'
+  properties: {
+    azureStorageConfigNames: ['data']
+  }
+}
+
 // Hostname binding for custom domain
 resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(customDomainName)) {
   parent: containerApp

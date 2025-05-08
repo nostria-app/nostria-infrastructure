@@ -150,7 +150,7 @@ module relayApps 'modules/container-app.bicep' = [
       // startupCommand: relayStartupCommand
       configContent: strfryConfigContent
       configFileName: 'strfry.conf'
-      startupCommand: 'strfry relay --config=/app/data/strfry.conf'
+      startupCommand: 'relay --config=/app/data/strfry.conf'
       // startupCommand: '--config=/app/data/strfry.conf'
     }
     dependsOn: [relayStorageAccounts]

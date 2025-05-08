@@ -199,31 +199,15 @@ module mediaStorageAccounts 'modules/storage-account.bicep' = [for i in range(0,
   }
 }]
 
-module mediaApps 'modules/container-app-compose.bicep' = [for i in range(0, mediaCount): {
+module mediaApps 'modules/container-app.bicep' = [for i in range(0, mediaCount): {
   name: '${baseAppName}-media-${toLower(mediaNames[i])}-${currentRegion}-deployment'
   params: {
     name: 'nostria-${toLower(mediaNames[i])}-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-media:latest'
     customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
     storageAccountName: mediaStorageAccounts[i].outputs.name
-    configYmlContent: loadTextContent('../config/media/config.yml')
-    dockerComposeYaml: '''
-version: '3'
-services:
-  media-app:
-    image: ghcr.io/nostria-app/nostria-media:latest
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      - Media__StoragePath=./data
-      - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
-      - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
-      - Media__Region=${currentRegion}
-    volumes:
-      - ${WEBAPP_STORAGE_HOME}/data:/app/data
-'''
     appSettings: [
       {
         name: 'WEBSITES_PORT'

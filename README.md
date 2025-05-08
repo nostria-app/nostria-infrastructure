@@ -174,6 +174,12 @@ az ad sp create-for-rbac --name "nostria-deployment" --role contributor --scopes
 
 After a lot of issues with mapping volumes to the container, it was discovered that it's not really needed. As long as the apps within the container can take configurations from environment variables, we can set that to /home/data which is then mapped in the setup.
 
+Instead of overriding the volume mapping in the container, we can also map the default paths to the Azure File Share.
+
+nostria-media: /app/data
+nostria-status: usr/src/app/data
+nostria-discovery: app/data
+nostria-relay: /app/strfry-db and /etc/strfry.conf
 
 ### TODO:
 

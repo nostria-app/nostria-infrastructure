@@ -155,6 +155,28 @@ me: uaenorth (Abu Dhabi, UAE)
 4. Asia, we will first deploy in Singapore, which gives OK coverage for the rest of Asia and Australia.
 5. South America.
 
+## Developer Notes
+
+How to get the Azure credentials for GitHub Actions:
+
+```powershell
+# Get name and id and type:
+az ad sp list | ConvertFrom-Json | Where-Object { $_.servicePrincipalType -ne "Application" } | Select-Object displayName, appId, id, servicePrincipalType | Format-Table -AutoSize | Out-File -FilePath './filtered-service-principals.txt'
+
+# Get all details:
+az ad sp list | ConvertFrom-Json | Where-Object { $_.servicePrincipalType -ne "Application" } | Out-File -FilePath './filtered-service-principals-all.txt'
+```
+
+```powershell	
+# Create a service principal with the required permissions
+az ad sp create-for-rbac --name "nostria-deployment" --role contributor --scopes /subscriptions/<your-subscription-id> --sdk-auth > ./github-actions-credentials.json
+```
+
+### TODO:
+
+https://azure.github.io/AppService/2025/04/01/Docker-compose-migration.html
+
+
 ## License
 
 See [LICENSE](./LICENSE) for details.

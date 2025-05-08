@@ -201,11 +201,10 @@ services:
       - Media__StoragePath=/data
       - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
       - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
-  media-processor:
-    image: ghcr.io/nostria-app/nostria-media-processor:latest
-    restart: always
-    depends_on:
-      - media-app
+      - Media__Region=${currentRegion}
+    volumes:
+      - ${WEBAPP_STORAGE_HOME}/data:/app/data
+      - ${WEBAPP_STORAGE_HOME}/data/config.yml:/app/config.yml
 '''
     appSettings: [
       {

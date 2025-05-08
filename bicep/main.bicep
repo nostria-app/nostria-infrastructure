@@ -19,6 +19,15 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
   }
 }
 
+// Deploy storage account for status app data
+module mainStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-storage-deployment'
+  params: {
+    name: 'nostriasa'
+    location: location
+  }
+}
+
 // Website App (Single instance)
 module websiteApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-website-app-deployment'
@@ -106,6 +115,7 @@ module statusApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
     customDomainName: 'status.nostria.app'
+    storageAccountName: mainStorage.outputs.name
     appSettings: [
       {
         name: 'DB_PATH'
@@ -122,6 +132,30 @@ module statusApp 'modules/container-app.bicep' = {
     ]
   }
 }
+
+// Assign Storage File Data SMB Share Contributor role to discovery app
+module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-status-storage-role-assignment'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: statusApp.outputs.webAppPrincipalId
+  }
+  dependsOn: [statusApp, mainStorage]
+}
+
+// Assign storage role to the status app
+// module statusAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
+//   name: '${baseAppName}-status-storage-role-assignment'
+//   params: {
+//     principalId: statusApp.outputs.webAppPrincipalId
+//     roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // Storage File Data SMB Share Contributor
+//     scope: statusStorage.outputs.id
+//   }
+//   dependsOn: [
+//     statusApp
+//     statusStorage
+//   ]
+// }
 
 // Certificate for status App
 module statusAppCert 'modules/container-app-certificate.bicep' = {

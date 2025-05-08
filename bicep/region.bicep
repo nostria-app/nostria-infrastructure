@@ -36,14 +36,29 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
 }
 
 // Deploy Discovery App for the current region
-module discoveryApp 'modules/container-app.bicep' = {
+module discoveryApp 'modules/container-app-compose.bicep' = {
   name: '${baseAppName}-discovery-app-${currentRegion}-deployment'
   params: {
     name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     customDomainName: 'discovery-${currentRegion}.nostria.app'
+    dockerComposeYaml: '''
+    version: '3'
+    services:
+      media-app:
+        image: ghcr.io/nostria-app/nostria-relay:latest
+        restart: always
+        ports:
+          - "3000:3000"
+        environment:
+          - Media__StoragePath=/data
+          - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
+          - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
+          - Media__Region=${currentRegion}
+        volumes:
+          - ${WEBAPP_STORAGE_HOME}/data/:/app/data
+    '''
     appSettings: [
       {
         name: 'CUSTOM_SETTING'
@@ -79,6 +94,7 @@ module discoveryApp 'modules/container-app.bicep' = {
       }
     ]
   }
+  dependsOn: [discoveryStorageAccount]
 }
 
 // Certificate for Discovery App
@@ -202,28 +218,11 @@ services:
       - Media__Region=${currentRegion}
     volumes:
       - ${WEBAPP_STORAGE_HOME}/data/:/app/data
-      - ${WEBAPP_STORAGE_HOME}/data/:/app/config.yml
 '''
     appSettings: [
       {
         name: 'WEBSITES_PORT'
         value: '3000'
-      }
-      {
-        name: 'Media__StoragePath'
-        value: '/data'
-      }
-      {
-        name: 'Media__Contact'
-        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
-      }
-      {
-        name: 'Media__PrivacyPolicy'
-        value: 'https://media.nostria.com/privacy-policy'
-      }
-      {
-        name: 'Media__Region'
-        value: currentRegion
       }
     ]
   }

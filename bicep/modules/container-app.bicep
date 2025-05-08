@@ -31,7 +31,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
       appSettings: concat(appSettings, [
         {
           name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
-          value: 'true'
+          value: 'false'
         }
       ], !empty(storageAccountName) ? [
         {
@@ -49,7 +49,7 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
         data: {
           type: 'AzureFiles'
           accountName: storageAccountName
-          mountPath: '/data'
+          mountPath: '/home/data'
           shareName: 'data'
           accessKey: storageAccountKey // Required for initial mount, app will use managed identity later
         }

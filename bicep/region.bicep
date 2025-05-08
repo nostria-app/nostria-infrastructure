@@ -39,7 +39,7 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
 module discoveryStorageAccount 'modules/storage-account.bicep' = {
   name: '${baseAppName}-discovery-${currentRegion}-storage-deployment'
   params: {
-    name: 'nostriadiscovery${currentRegion}sa'
+    name: 'discovery${currentRegion}sa'
     location: location
   }
 }
@@ -62,12 +62,12 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
         ports:
           - "3000:3000"
         environment:
-          - Media__StoragePath=/data
+          - Media__StoragePath=./data
           - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
           - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
           - Media__Region=${currentRegion}
         volumes:
-          - /home/data:/app/data
+          - ${WEBAPP_STORAGE_HOME}/data:/app/data
     '''
     appSettings: [
       {
@@ -80,7 +80,7 @@ module discoveryApp 'modules/container-app-compose.bicep' = {
       }
       {
         name: 'Lmdb__DatabasePath'
-        value: '/home/data'
+        value: './data'
       }
       {
         name: 'Lmdb__SizeInMb'
@@ -167,7 +167,7 @@ module relayApps 'modules/container-app.bicep' = [for i in range(0, relayCount):
       }
       {
         name: 'Lmdb__DatabasePath'
-        value: '/data'
+        value: './data'
       }
       {
         name: 'Lmdb__MaxReaders'
@@ -232,12 +232,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - Media__StoragePath=/data
+      - Media__StoragePath=./data
       - Media__Contact=17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515
       - Media__PrivacyPolicy=https://media.nostria.com/privacy-policy
       - Media__Region=${currentRegion}
     volumes:
-      - /home/data:/app/data
+      - ${WEBAPP_STORAGE_HOME}/data:/app/data
 '''
     appSettings: [
       {

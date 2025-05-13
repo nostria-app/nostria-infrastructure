@@ -60,20 +60,12 @@ module discoveryApp 'modules/container-app.bicep' = {
     storageAccountName: discoveryStorageAccount.outputs.name
     appSettings: [
       {
-        name: 'CUSTOM_SETTING'
-        value: 'value'
+        name: 'Storage__Provider'
+        value: 'AzureBlob'
       }
       {
-        name: 'Lmdb__MaxReaders'
-        value: 4096
-      }
-      {
-        name: 'Lmdb__DatabasePath'
-        value: '/app/data'
-      }
-      {
-        name: 'Lmdb__SizeInMb'
-        value: 512000
+        name: 'AzureBlob__ConnectionString'
+        value: ''
       }
       {
         name: 'Relay__Contact'

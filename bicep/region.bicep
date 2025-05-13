@@ -73,7 +73,7 @@ module discoveryApp 'modules/container-app.bicep' = {
       }
       {
         name: 'Lmdb__SizeInMb'
-        value: 1024
+        value: 512000
       }
       {
         name: 'Relay__Contact'

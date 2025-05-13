@@ -106,6 +106,32 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [metadataApp]
 }
 
+// Find App (Single instance)
+module findApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-find-app-deployment'
+  params: {
+    name: 'nostria-find'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-find:latest'
+    customDomainName: 'find.nostria.app'
+    appSettings: []
+  }
+}
+
+// Certificate for Find App
+module findAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-find-app-cert-deployment'
+  params: {
+    name: 'nostria-find'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'find.nostria.app'
+    containerAppId: findApp.outputs.id
+  }
+  dependsOn: [findApp]
+}
+
 // status App (Single instance)
 module statusApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-status-app-deployment'

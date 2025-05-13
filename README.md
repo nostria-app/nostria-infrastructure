@@ -33,6 +33,14 @@ Set-AzContext -SubscriptionId "<your-subscription-id>"
 
 ## Deployment
 
+### Update Discovery Relays
+
+When a new image of the Discovery Relay is built using the separate repo, run this command to update the web app:
+
+```powershell
+ ./scripts/update-web-app.ps1 -WebAppNames @("nostria-discovery-eu") -ResourceGroup "nostria-eu" -ContainerImage "ghcr.io/nostria-app/discovery-relay:9e75597ed5c7ad4e97f5278b35f325ded9465b43"
+```
+
 ### Deploying the Infrastructure
 
 Use the `deploy.ps1` script to deploy the entire infrastructure:

@@ -21,9 +21,17 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
 
 // Deploy storage account for status app data
 module statusStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-storage-deployment'
+  name: '${baseAppName}-status-storage-deployment'
   params: {
     name: 'nostriastatussa'
+    location: location
+  }
+}
+
+module mainStorage 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-main-storage-deployment'
+  params: {
+    name: 'nostriasa'
     location: location
   }
 }
@@ -132,6 +140,60 @@ module findAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [findApp]
 }
 
+// notification App (Single instance)
+module notificationApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-notification-app-deployment'
+  params: {
+    name: 'nostria-notification'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-notification:latest'
+    customDomainName: 'notification.nostria.app'
+    storageAccountName: mainStorage.outputs.name
+    appSettings: []
+  }
+}
+
+// Certificate for notification App
+module notificationAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-notification-app-cert-deployment'
+  params: {
+    name: 'nostria-notification'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'notification.nostria.app'
+    containerAppId: notificationApp.outputs.id
+  }
+  dependsOn: [notificationApp]
+}
+
+module notificationAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-notification-storage-role-assignment'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: notificationApp.outputs.webAppPrincipalId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Blob Storage: Storage Blob Data Contributor
+  }
+}
+
+module notificationAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-notification-storage-role-assignment'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: notificationApp.outputs.webAppPrincipalId
+    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Table Storage: Storage Table Data Contributor
+  }
+}
+
+module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-notification-storage-role-assignment'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: notificationApp.outputs.webAppPrincipalId
+    roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
+  }
+}
+
 // status App (Single instance)
 module statusApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-status-app-deployment'
@@ -165,23 +227,12 @@ module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
   params: {
     storageAccountName: statusStorage.outputs.name
     principalId: statusApp.outputs.webAppPrincipalId
+    // Default role will be used (Storage File Data SMB Share Contributor)
+    // If Status app needs Blob Storage access, change to:
+    // roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
   }
   dependsOn: [statusApp, statusStorage]
 }
-
-// Assign storage role to the status app
-// module statusAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
-//   name: '${baseAppName}-status-storage-role-assignment'
-//   params: {
-//     principalId: statusApp.outputs.webAppPrincipalId
-//     roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // Storage File Data SMB Share Contributor
-//     scope: statusStorage.outputs.id
-//   }
-//   dependsOn: [
-//     statusApp
-//     statusStorage
-//   ]
-// }
 
 // Certificate for status App
 module statusAppCert 'modules/container-app-certificate.bicep' = {

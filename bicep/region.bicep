@@ -64,8 +64,12 @@ module discoveryApp 'modules/container-app.bicep' = {
         value: 'AzureBlob'
       }
       {
-        name: 'AzureBlob__ConnectionString'
-        value: ''
+        name: 'AzureBlob__UseManagedIdentity'
+        value: true
+      }
+      {
+        name: 'AzureBlob__AccountName'
+        value: discoveryStorageAccount.outputs.name
       }
       {
         name: 'Relay__Contact'
@@ -88,12 +92,13 @@ module discoveryApp 'modules/container-app.bicep' = {
   dependsOn: [discoveryStorageAccount]
 }
 
-// Assign Storage File Data SMB Share Contributor role to discovery app
+// Assign Storage Blob Data Contributor role to discovery app
 module discoveryStorageRoleAssignment 'modules/role-assignment.bicep' = {
   name: '${baseAppName}-discovery-${currentRegion}-role-assignment'
   params: {
     storageAccountName: discoveryStorageAccount.outputs.name
     principalId: discoveryApp.outputs.webAppPrincipalId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
   }
   dependsOn: [discoveryApp, discoveryStorageAccount]
 }

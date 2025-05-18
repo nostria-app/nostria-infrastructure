@@ -1,6 +1,7 @@
 param name string
 param location string = resourceGroup().location
 param customDomainName string
+param legacyDomainName string
 param containerAppId string
 param appServicePlanId string
 
@@ -12,6 +13,16 @@ resource appServiceCertificate 'Microsoft.Web/certificates@2024-04-01' = {
     serverFarmId: appServicePlanId
     canonicalName: customDomainName
     hostNames: [customDomainName]
+  }
+}
+
+resource appServiceLegacyCertificate 'Microsoft.Web/certificates@2024-04-01' = {
+  name: '${name}-legacy-cert'
+  location: location
+  properties: {
+    serverFarmId: appServicePlanId
+    canonicalName: legacyDomainName
+    hostNames: [legacyDomainName]
   }
 }
 
@@ -34,4 +45,21 @@ resource sslBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = {
   }
 }
 
+resource sslBindingLegacy 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = {
+  name: legacyDomainName
+  parent: appServiceSite
+  properties: {
+    sslState: 'SniEnabled'
+    thumbprint: appServiceLegacyCertificate.properties.thumbprint
+    siteName: name
+    hostNameType: 'Verified'
+    azureResourceType: 'Website'
+    customHostNameDnsRecordType: 'CName'
+  }
+  dependsOn: [
+    sslBinding
+  ]
+}
+
 output certificateThumbprint string = appServiceCertificate.properties.thumbprint
+output legacyCertificateThumbprint string = appServiceLegacyCertificate.properties.thumbprint

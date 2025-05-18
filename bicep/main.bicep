@@ -168,7 +168,7 @@ module notificationAppCert 'modules/container-app-certificate.bicep' = {
 }
 
 module notificationAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment'
+  name: '${baseAppName}-notification-storage-role-assignment1'
   params: {
     storageAccountName: mainStorage.outputs.name
     principalId: notificationApp.outputs.webAppPrincipalId
@@ -177,7 +177,7 @@ module notificationAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
 }
 
 module notificationAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment'
+  name: '${baseAppName}-notification-storage-role-assignment2'
   params: {
     storageAccountName: mainStorage.outputs.name
     principalId: notificationApp.outputs.webAppPrincipalId
@@ -186,7 +186,7 @@ module notificationAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
 }
 
 module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment'
+  name: '${baseAppName}-notification-storage-role-assignment3'
   params: {
     storageAccountName: mainStorage.outputs.name
     principalId: notificationApp.outputs.webAppPrincipalId

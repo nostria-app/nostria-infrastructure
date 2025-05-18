@@ -55,7 +55,8 @@ module discoveryApp 'modules/container-app.bicep' = {
     name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'discovery-${currentRegion}.nostria.app'
+    customDomainName: 'discovery.${currentRegion}.nostria.app'
+    legacyDomainName: 'discovery-${currentRegion}.nostria.app'
     containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
     storageAccountName: discoveryStorageAccount.outputs.name
     appSettings: [
@@ -110,7 +111,8 @@ module discoveryAppCert 'modules/container-app-certificate.bicep' = {
     name: 'nostria-discovery-${currentRegion}'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'discovery-${currentRegion}.nostria.app'
+    customDomainName: 'discovery.${currentRegion}.nostria.app'
+    legacyDomainName: 'discovery-${currentRegion}.nostria.app'
     containerAppId: discoveryApp.outputs.id
   }
   dependsOn: [discoveryApp]
@@ -136,7 +138,8 @@ module relayApps 'modules/container-app.bicep' = [
       appServicePlanId: appServicePlan.outputs.id
       // containerImage: 'ghcr.io/nostria-app/nostria-relay:latest'
       containerImage: 'ghcr.io/hoytech/strfry:latest'
-      customDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
+      customDomainName: '${toLower(relayNames[i])}.${currentRegion}.nostria.app'
+      legacyDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
       storageAccountName: relayStorageAccounts[i].outputs.name
       appSettings: [
         {
@@ -174,7 +177,8 @@ module relayAppsCerts 'modules/container-app-certificate.bicep' = [
       name: 'nostria-${toLower(relayNames[i])}-${currentRegion}'
       location: location
       appServicePlanId: appServicePlan.outputs.id
-      customDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
+      customDomainName: '${toLower(relayNames[i])}.${currentRegion}.nostria.app'
+      legacyDomainName: '${toLower(relayNames[i])}-${currentRegion}.nostria.app'
       containerAppId: relayApps[i].outputs.id
     }
     dependsOn: [relayApps]
@@ -200,7 +204,8 @@ module mediaApps 'modules/container-app.bicep' = [
       location: location
       appServicePlanId: appServicePlan.outputs.id
       containerImage: 'ghcr.io/nostria-app/nostria-media:latest'
-      customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
+      customDomainName: '${toLower(mediaNames[i])}.${currentRegion}.nostria.app'
+      legacyDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
       storageAccountName: mediaStorageAccounts[i].outputs.name
       configContent: mediaConfigContent
       configFileName: 'config.yml'
@@ -239,7 +244,8 @@ module mediaAppsCerts 'modules/container-app-certificate.bicep' = [
       name: 'nostria-${toLower(mediaNames[i])}-${currentRegion}'
       location: location
       appServicePlanId: appServicePlan.outputs.id
-      customDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
+      customDomainName: '${toLower(mediaNames[i])}.${currentRegion}.nostria.app'
+      legacyDomainName: '${toLower(mediaNames[i])}-${currentRegion}.nostria.app'
       containerAppId: mediaApps[i].outputs.id
     }
     dependsOn: [mediaApps]

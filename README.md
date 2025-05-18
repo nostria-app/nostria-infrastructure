@@ -91,6 +91,15 @@ This will copy all files from the source storage account to the backup storage a
 ./scripts/restore.ps1 -BackupStorageName "nostriamedia1bkp" -TargetStorageName "nostriamedia1" -ResourceGroupName "nostria"
 ```
 
+## Nostria Notification
+
+Make sure that the following environment variables are set in the container app:
+
+- `PUBLIC_VAPID_KEY`: Public VAPID key for web push notifications
+- `PRIVATE_VAPID_KEY`: Private VAPID key for web push notifications
+- `VAPID_SUBJECT`: E-mail for the VAPID
+- `NOTIFICATION_API_KEY`: Admin API key for the Nostria Notification service
+
 ## GitHub Actions Workflows
 
 This repository includes GitHub Actions workflows for automating the deployment of containers:

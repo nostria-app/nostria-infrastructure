@@ -3,7 +3,6 @@ param location string = resourceGroup().location
 param appServicePlanId string
 param containerImage string
 param customDomainName string = ''
-param legacyDomainName string = ''
 param appSettings array = []
 param storageAccountName string = ''
 @secure()
@@ -227,21 +226,21 @@ resource hostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if 
 }
 
 // Hostname binding for legacy domain
-resource legacyHostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(legacyDomainName)) {
-  parent: containerApp
-  name: legacyDomainName
-  properties: {
-    hostNameType: 'Verified'
-    sslState: 'Disabled'
-    thumbprint: ''
-    siteName: name
-    azureResourceType: 'Website'
-    customHostNameDnsRecordType: 'CName'
-  }
-  dependsOn: [
-    hostnameBinding
-  ]
-}
+// resource legacyHostnameBinding 'Microsoft.Web/sites/hostNameBindings@2024-04-01' = if (!empty(legacyDomainName)) {
+//   parent: containerApp
+//   name: legacyDomainName
+//   properties: {
+//     hostNameType: 'Verified'
+//     sslState: 'Disabled'
+//     thumbprint: ''
+//     siteName: name
+//     azureResourceType: 'Website'
+//     customHostNameDnsRecordType: 'CName'
+//   }
+//   dependsOn: [
+//     hostnameBinding
+//   ]
+// }
 
 output id string = containerApp.id
 output name string = containerApp.name

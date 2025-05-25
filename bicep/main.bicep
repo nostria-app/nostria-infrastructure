@@ -14,7 +14,7 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
 module centralBackupStorage 'modules/central-backup.bicep' = {
   name: '${baseAppName}-central-backup-deployment'
   params: {
-    name: 'nostriabak'
+    name: 'nostriabakst'
     location: location
   }
 }
@@ -23,7 +23,7 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
 module statusStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-status-storage-deployment'
   params: {
-    name: 'nostriastatussa'
+    name: 'nostriastatusst'
     location: location
   }
 }
@@ -31,16 +31,16 @@ module statusStorage 'modules/storage-account.bicep' = {
 module mainStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-main-storage-deployment'
   params: {
-    name: 'nostriasa'
+    name: 'nostriast'
     location: location
   }
 }
 
 // Website App (Single instance)
 module websiteApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-website-app-deployment'
+  name: '${baseAppName}-web-app-deployment'
   params: {
-    name: 'nostria-website'
+    name: 'nostria-web'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-website:latest'
@@ -51,22 +51,21 @@ module websiteApp 'modules/container-app.bicep' = {
 
 // Certificate for Website App
 module websiteAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-website-app-cert-deployment'
+  name: '${baseAppName}-web-app-cert-deployment'
   params: {
-    name: 'nostria-website'
+    name: 'nostria-web'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'www.nostria.app'
-    containerAppId: websiteApp.outputs.id
   }
   dependsOn: [websiteApp]
 }
 
 // Main App (Single instance)
 module mainApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-main-app-deployment'
+  name: '${baseAppName}-app-deployment'
   params: {
-    name: 'nostria-app'
+    name: 'nostria'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria:latest'
@@ -77,13 +76,12 @@ module mainApp 'modules/container-app.bicep' = {
 
 // Certificate for Main App
 module mainAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-main-app-cert-deployment'
+  name: '${baseAppName}-app-cert-deployment'
   params: {
-    name: 'nostria-app'
+    name: 'nostria'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'nostria.app'
-    containerAppId: mainApp.outputs.id
   }
   dependsOn: [mainApp]
 }
@@ -92,7 +90,7 @@ module mainAppCert 'modules/container-app-certificate.bicep' = {
 module metadataApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-metadata-app-deployment'
   params: {
-    name: 'nostria-metadata'
+    name: 'nostria-metadata-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-metadata:latest'
@@ -105,11 +103,10 @@ module metadataApp 'modules/container-app.bicep' = {
 module metadataAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-metadata-app-cert-deployment'
   params: {
-    name: 'nostria-metadata'
+    name: 'nostria-metadata-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'metadata.nostria.app'
-    containerAppId: metadataApp.outputs.id
   }
   dependsOn: [metadataApp]
 }
@@ -118,7 +115,7 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
 module findApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-find-app-deployment'
   params: {
-    name: 'nostria-find'
+    name: 'nostria-find-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-find:latest'
@@ -131,11 +128,10 @@ module findApp 'modules/container-app.bicep' = {
 module findAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-find-app-cert-deployment'
   params: {
-    name: 'nostria-find'
+    name: 'nostria-find-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'find.nostria.app'
-    containerAppId: findApp.outputs.id
   }
   dependsOn: [findApp]
 }
@@ -144,7 +140,7 @@ module findAppCert 'modules/container-app-certificate.bicep' = {
 module notificationApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-notification-app-deployment'
   params: {
-    name: 'nostria-notification'
+    name: 'nostria-notification-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-notification:latest'
@@ -158,11 +154,10 @@ module notificationApp 'modules/container-app.bicep' = {
 module notificationAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-notification-app-cert-deployment'
   params: {
-    name: 'nostria-notification'
+    name: 'nostria-notification-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'notification.nostria.app'
-    containerAppId: notificationApp.outputs.id
   }
   dependsOn: [notificationApp]
 }
@@ -198,7 +193,7 @@ module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
 module statusApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-status-app-deployment'
   params: {
-    name: 'nostria-status'
+    name: 'nostria-status-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
@@ -238,11 +233,10 @@ module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
 module statusAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-status-app-cert-deployment'
   params: {
-    name: 'nostria-status'
+    name: 'nostria-status-app'
     location: location
     appServicePlanId: appServicePlan.outputs.id
     customDomainName: 'status.nostria.app'
-    containerAppId: statusApp.outputs.id
   }
   dependsOn: [statusApp]
 }

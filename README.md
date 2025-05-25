@@ -130,6 +130,8 @@ This repository includes GitHub Actions workflows for automating the deployment 
 - Web apps does not have access to the backup storage account.
 - This ensures that hacked web apps cannot access the backup storage account.
 
+Consider Blob Index Tags: https://learn.microsoft.com/en-us/azure/storage/blobs/storage-manage-find-blobs
+
 ## Regional Abbreviations
 
 https://www.jlaundry.nz/2022/azure_region_abbreviations/

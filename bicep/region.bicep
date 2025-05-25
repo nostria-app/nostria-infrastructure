@@ -11,6 +11,9 @@ param relayCountPerRegion object = {}
 @description('Object defining the number of media servers per region. Example: {"eu": 2, "af": 1}')
 param mediaCountPerRegion object = {}
 
+@description('Object defining the app service plan SKUs per region. Example: {"eu": {"name": "B3", "tier": "Basic"}, "af": {"name": "B2", "tier": "Basic"}}')
+param appServicePlanSkus object = {}
+
 @description('Array of relay server names')
 param relayNames array
 @description('Array of media server names')
@@ -30,12 +33,19 @@ module regionConfig 'modules/region-mapping.bicep' = {
 var relayCount = contains(relayCountPerRegion, currentRegion) ? relayCountPerRegion[currentRegion] : defaultRelayCount
 var mediaCount = contains(mediaCountPerRegion, currentRegion) ? mediaCountPerRegion[currentRegion] : defaultMediaCount
 
+// Choose appropriate SKU based on region or default to B1 if region not specified
+var selectedSku = contains(appServicePlanSkus, currentRegion) ? appServicePlanSkus[currentRegion] : {
+  name: 'B1'
+  tier: 'Basic'
+}
+
 // Deploy App Service Plan for the current region
 module appServicePlan 'modules/app-service-plan.bicep' = {
   name: '${baseAppName}-${currentRegion}-plan-deployment'
   params: {
     name: '${baseAppName}-${currentRegion}-plan'
     location: location
+    sku: selectedSku
   }
 }
 

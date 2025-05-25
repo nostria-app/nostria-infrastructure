@@ -1,9 +1,24 @@
-using './region.bicep'
+using 'region.bicep'
 
 param currentRegion = 'eu'
 param baseAppName = 'nostria'
 param defaultRelayCount = 1
 param defaultMediaCount = 1
+
+param appServicePlanSkus = {
+  eu: {
+    name: 'B3'
+    tier: 'Basic'
+  }
+  us: {
+    name: 'B3'
+    tier: 'Basic'
+  }
+  af: {
+    name: 'B2'
+    tier: 'Basic'
+  }
+}
 
 param relayCountPerRegion = {
   eu: 1

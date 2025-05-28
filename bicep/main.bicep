@@ -189,6 +189,59 @@ module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
   }
 }
 
+// Service App (Single instance)
+module serviceApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-service-app-deployment'
+  params: {
+    name: 'nostria-service'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-service:latest'
+    customDomainName: 'service.nostria.app'
+    storageAccountName: mainStorage.outputs.name
+    appSettings: []
+  }
+}
+
+// Certificate for service App
+module serviceAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-service-app-cert-deployment'
+  params: {
+    name: 'nostria-service'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'service.nostria.app'
+  }
+  dependsOn: [serviceApp]
+}
+
+module serviceAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-service-storage-role-assignment1'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: serviceApp.outputs.webAppPrincipalId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Blob Storage: Storage Blob Data Contributor
+  }
+}
+
+module serviceAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-service-storage-role-assignment2'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: serviceApp.outputs.webAppPrincipalId
+    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Table Storage: Storage Table Data Contributor
+  }
+}
+
+module serviceAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-service-storage-role-assignment3'
+  params: {
+    storageAccountName: mainStorage.outputs.name
+    principalId: serviceApp.outputs.webAppPrincipalId
+    roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
+  }
+}
+
 // status App (Single instance)
 module statusApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-status-app-deployment'

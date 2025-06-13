@@ -19,6 +19,15 @@ module centralBackupStorage 'modules/central-backup.bicep' = {
   }
 }
 
+// Deploy Key Vault for storing application secrets
+module keyVault 'modules/key-vault.bicep' = {
+  name: '${baseAppName}-key-vault-deployment'
+  params: {
+    keyVaultName: '${baseAppName}-kv'
+    location: location
+  }
+}
+
 // Deploy storage account for status app data
 module statusStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-status-storage-deployment'
@@ -158,7 +167,24 @@ module notificationApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/nostria-notification:latest'
     customDomainName: 'notification.nostria.app'
     storageAccountName: mainStorage.outputs.name
-    appSettings: []
+    appSettings: [
+      {
+        name: 'VAPID_SUBJECT'
+        value: 'mailto:nostriapp@gmail.com'
+      }
+      {
+        name: 'PUBLIC_VAPID_KEY'
+        value: 'BGlnJ82dweHfLKdW2mMOLhYOj1teZ6aiFpkoPLaS5NcEqqPl2WVLMnm2EPo82C9ShWvziiEETuv5nEJYeKN1mX8'
+      }
+      {
+        name: 'PRIVATE_VAPID_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=private-vapid-key)'
+      }
+      {
+        name: 'NOTIFICATION_API_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
+      }
+    ]
   }
 }
 
@@ -198,6 +224,16 @@ module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
     storageAccountName: mainStorage.outputs.name
     principalId: notificationApp.outputs.webAppPrincipalId
     roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
+  }
+}
+
+// Grant notification app access to Key Vault secrets
+module notificationAppKeyVaultRoleAssignment 'modules/key-vault-role-assignment.bicep' = {
+  name: '${baseAppName}-notification-keyvault-role-assignment'
+  params: {
+    keyVaultName: keyVault.outputs.keyVaultName
+    principalId: notificationApp.outputs.webAppPrincipalId
+    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
   }
 }
 
@@ -291,7 +327,6 @@ module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
     // If Status app needs Blob Storage access, change to:
     // roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
   }
-  dependsOn: [statusApp, statusStorage]
 }
 
 // Certificate for status App

@@ -92,6 +92,7 @@ if (-not (Test-Path -Path $bicepParamFile)) {
 
 Write-StatusMessage "Using Bicep template: $bicepTemplate" -Type Info
 Write-StatusMessage "Using parameter file: $bicepParamFile" -Type Info
+Write-StatusMessage "Note: Secrets will be read from Key Vault. Ensure secrets are manually added to Key Vault after deployment." -Type Warning
 
 # Create the resource group if it doesn't exist
 try {
@@ -111,8 +112,7 @@ try {
 
 # Deploy the Bicep template
 if ($WhatIf) {
-    Write-StatusMessage "Validating deployment for global infrastructure (what-if)..." -Type Info
-    try {
+    Write-StatusMessage "Validating deployment for global infrastructure (what-if)..." -Type Info    try {
         $whatIfParams = @{
             ResourceGroupName = $ResourceGroupName
             TemplateFile = $bicepTemplate
@@ -120,7 +120,8 @@ if ($WhatIf) {
             WhatIf = $true
             ErrorAction = 'Stop'
         }
-        Write-StatusMessage "Using parameters: $(ConvertTo-Json $whatIfParams -Compress)" -Type Info
+        
+        Write-StatusMessage "Using parameters: $(ConvertTo-Json ($whatIfParams.Keys) -Compress)" -Type Info
         $whatIfResult = New-AzResourceGroupDeployment @whatIfParams
         Write-StatusMessage "What-If validation completed successfully." -Type Success
     } catch {
@@ -150,9 +151,7 @@ if ($WhatIf) {
                 }
                 exit 1
             }
-        }
-        
-        $deploymentParams = @{
+        }        $deploymentParams = @{
             ResourceGroupName = $ResourceGroupName
             TemplateFile = $bicepTemplate
             TemplateParameterFile = $bicepParamFile

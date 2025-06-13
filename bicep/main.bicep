@@ -36,6 +36,18 @@ module mainStorage 'modules/storage-account.bicep' = {
   }
 }
 
+// Deploy Cosmos DB for the application
+module cosmosDb 'modules/cosmos-db.bicep' = {
+  name: '${baseAppName}-cosmos-db-deployment'
+  params: {
+    name: 'nostria-test'
+    location: location
+    enableServerless: true
+    enableFreeTier: false
+    defaultConsistencyLevel: 'Session'
+  }
+}
+
 // Website App (Single instance)
 module websiteApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-web-app-deployment'
@@ -297,6 +309,14 @@ module statusAppCert 'modules/container-app-certificate.bicep' = {
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
+
+// Cosmos DB outputs
+output cosmosDbAccountId string = cosmosDb.outputs.id
+output cosmosDbAccountName string = cosmosDb.outputs.name
+output cosmosDbDocumentEndpoint string = cosmosDb.outputs.documentEndpoint
+output cosmosDbPrincipalId string = cosmosDb.outputs.principalId
+output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
+output cosmosDbContainerName string = cosmosDb.outputs.containerName
 
 // Only output these if primary region (eu)
 output centralBackupStorageName string = centralBackupStorage.outputs.name

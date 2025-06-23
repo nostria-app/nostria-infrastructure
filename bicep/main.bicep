@@ -157,15 +157,15 @@ module findAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [findApp]
 }
 
-// notification App (Single instance)
-module notificationApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-notification-app-deployment'
+// Service App (Single instance)
+module serviceApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-service-app-deployment'
   params: {
-    name: 'nostria-notification-app'
+    name: 'nostria-service'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-notification:latest'
-    customDomainName: 'notification.nostria.app'
+    containerImage: 'ghcr.io/nostria-app/nostria-service:latest'
+    customDomainName: 'api.nostria.app'
     storageAccountName: mainStorage.outputs.name
     appSettings: [
       {
@@ -188,69 +188,6 @@ module notificationApp 'modules/container-app.bicep' = {
   }
 }
 
-// Certificate for notification App
-module notificationAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-notification-app-cert-deployment'
-  params: {
-    name: 'nostria-notification-app'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'notification.nostria.app'
-  }
-  dependsOn: [notificationApp]
-}
-
-module notificationAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment1'
-  params: {
-    storageAccountName: mainStorage.outputs.name
-    principalId: notificationApp.outputs.webAppPrincipalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Blob Storage: Storage Blob Data Contributor
-  }
-}
-
-module notificationAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment2'
-  params: {
-    storageAccountName: mainStorage.outputs.name
-    principalId: notificationApp.outputs.webAppPrincipalId
-    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Table Storage: Storage Table Data Contributor
-  }
-}
-
-module notificationAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-notification-storage-role-assignment3'
-  params: {
-    storageAccountName: mainStorage.outputs.name
-    principalId: notificationApp.outputs.webAppPrincipalId
-    roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
-  }
-}
-
-// Grant notification app access to Key Vault secrets
-module notificationAppKeyVaultRoleAssignment 'modules/key-vault-role-assignment.bicep' = {
-  name: '${baseAppName}-notification-keyvault-role-assignment'
-  params: {
-    keyVaultName: keyVault.outputs.keyVaultName
-    principalId: notificationApp.outputs.webAppPrincipalId
-    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
-  }
-}
-
-// Service App (Single instance)
-module serviceApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-service-app-deployment'
-  params: {
-    name: 'nostria-service'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    containerImage: 'ghcr.io/nostria-app/nostria-service:latest'
-    customDomainName: 'service.nostria.app'
-    storageAccountName: mainStorage.outputs.name
-    appSettings: []
-  }
-}
-
 // Certificate for service App
 module serviceAppCert 'modules/container-app-certificate.bicep' = {
   name: '${baseAppName}-service-app-cert-deployment'
@@ -258,7 +195,7 @@ module serviceAppCert 'modules/container-app-certificate.bicep' = {
     name: 'nostria-service'
     location: location
     appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'service.nostria.app'
+    customDomainName: 'api.nostria.app'
   }
   dependsOn: [serviceApp]
 }
@@ -289,6 +226,69 @@ module serviceAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
     roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
   }
 }
+
+// Grant notification app access to Key Vault secrets
+module serviceAppKeyVaultRoleAssignment 'modules/key-vault-role-assignment.bicep' = {
+  name: '${baseAppName}-service-keyvault-role-assignment'
+  params: {
+    keyVaultName: keyVault.outputs.keyVaultName
+    principalId: serviceApp.outputs.webAppPrincipalId
+    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
+  }
+}
+
+// Service App (Single instance)
+// module serviceApp 'modules/container-app.bicep' = {
+//   name: '${baseAppName}-service-app-deployment'
+//   params: {
+//     name: 'nostria-service'
+//     location: location
+//     appServicePlanId: appServicePlan.outputs.id
+//     containerImage: 'ghcr.io/nostria-app/nostria-service:latest'
+//     customDomainName: 'service.nostria.app'
+//     storageAccountName: mainStorage.outputs.name
+//     appSettings: []
+//   }
+// }
+
+// // Certificate for service App
+// module serviceAppCert 'modules/container-app-certificate.bicep' = {
+//   name: '${baseAppName}-service-app-cert-deployment'
+//   params: {
+//     name: 'nostria-service'
+//     location: location
+//     appServicePlanId: appServicePlan.outputs.id
+//     customDomainName: 'service.nostria.app'
+//   }
+//   dependsOn: [serviceApp]
+// }
+
+// module serviceAppStorageRoleAssignment1 'modules/role-assignment.bicep' = {
+//   name: '${baseAppName}-service-storage-role-assignment1'
+//   params: {
+//     storageAccountName: mainStorage.outputs.name
+//     principalId: serviceApp.outputs.webAppPrincipalId
+//     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Blob Storage: Storage Blob Data Contributor
+//   }
+// }
+
+// module serviceAppStorageRoleAssignment2 'modules/role-assignment.bicep' = {
+//   name: '${baseAppName}-service-storage-role-assignment2'
+//   params: {
+//     storageAccountName: mainStorage.outputs.name
+//     principalId: serviceApp.outputs.webAppPrincipalId
+//     roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3' // Table Storage: Storage Table Data Contributor
+//   }
+// }
+
+// module serviceAppStorageRoleAssignment3 'modules/role-assignment.bicep' = {
+//   name: '${baseAppName}-service-storage-role-assignment3'
+//   params: {
+//     storageAccountName: mainStorage.outputs.name
+//     principalId: serviceApp.outputs.webAppPrincipalId
+//     roleDefinitionId: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb' // File Shares: Storage File Data SMB Share Contributor
+//   }
+// }
 
 // status App (Single instance)
 module statusApp 'modules/container-app.bicep' = {

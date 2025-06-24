@@ -184,6 +184,10 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'NOTIFICATION_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
       }
+      {
+        name: 'AZURE_COSMOSDB_CONNECTION_STRING'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'
+      }
     ]
   }
 }

@@ -28,7 +28,7 @@ param databaseName string = 'NostriaDB'
 param containerName string = 'Documents'
 
 @description('Partition key for the container')
-param partitionKeyPath string = '/id'
+param partitionKeyPath string = '/pubkey'
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-11-15' = {
   name: name

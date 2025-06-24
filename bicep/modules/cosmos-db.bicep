@@ -101,6 +101,7 @@ resource cosmosContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
           }
         ]
       }
+      defaultTtl: -1
     }
     options: enableServerless ? {} : {
       throughput: 400

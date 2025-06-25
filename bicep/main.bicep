@@ -184,9 +184,13 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'NOTIFICATION_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
       }
+      // {
+      //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'
+      //   value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'
+      // }
       {
-        name: 'AZURE_COSMOSDB_CONNECTION_STRING'
-        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'
+        name: 'AZURE_COSMOSDB_ENDPOINT'
+        value: 'https://nostria.documents.azure.com:443/'
       }
     ]
   }
@@ -238,6 +242,16 @@ module serviceAppKeyVaultRoleAssignment 'modules/key-vault-role-assignment.bicep
     keyVaultName: keyVault.outputs.keyVaultName
     principalId: serviceApp.outputs.webAppPrincipalId
     roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault Secrets User
+  }
+}
+
+// Grant service app access to Cosmos DB with built-in Data Contributor role
+module serviceAppCosmosDbRoleAssignment 'modules/cosmos-db-role-assignment.bicep' = {
+  name: '${baseAppName}-service-cosmosdb-role-assignment'
+  params: {
+    cosmosDbAccountName: cosmosDb.outputs.name
+    principalId: serviceApp.outputs.webAppPrincipalId
+    useBuiltInDataContributorRole: true
   }
 }
 

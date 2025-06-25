@@ -49,7 +49,7 @@ module mainStorage 'modules/storage-account.bicep' = {
 module cosmosDb 'modules/cosmos-db.bicep' = {
   name: '${baseAppName}-cosmos-db-deployment'
   params: {
-    name: 'nostria-test'
+    name: 'nostria'
     location: location
     enableServerless: true
     enableFreeTier: false

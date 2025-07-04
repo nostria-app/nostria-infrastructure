@@ -21,12 +21,14 @@ param appServicePlanSkus = {
 }
 
 param relayCountPerRegion = {
-  eu: 1
   af: 1
+  eu: 1
+  us: 1
 }
 param mediaCountPerRegion = {
-  eu: 1
   af: 1
+  eu: 1
+  us: 1
 }
 
 param relayNames = [

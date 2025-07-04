@@ -115,13 +115,13 @@ media:
     # output format [mp4, webm, mkv] (default mp4)
     format: "webm"
     # audio codec [aac, mp3, vorbis, opus] (default aac)
-    audioCodec: "aac"
+    audioCodec: "opus"
     # video codec [libx264, libx265, vp8, vp9] (default libx264)
-    videoCodec: "libx264"
+    videoCodec: "vp9"
 
 list:
   requireAuth: false
-  allowListOthers: true
+  allowListOthers: false
 
 tor:
   enabled: false

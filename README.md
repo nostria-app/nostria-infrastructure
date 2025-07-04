@@ -47,7 +47,7 @@ Use the `deploy.ps1` script to deploy the entire infrastructure:
 
 ```powershell
  ./scripts/deploy-main.ps1
- ./scripts/deploy-region.ps1 -Regions eu,af
+ ./scripts/deploy-region.ps1 -Regions eu,us,af
 ```
 
 Parameters:

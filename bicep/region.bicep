@@ -253,6 +253,68 @@ module mediaAppsCerts 'modules/container-app-certificate.bicep' = [
   }
 ]
 
+// Create array of relay endpoints for proxy configuration
+var relayEndpoints = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.${currentRegion}.nostria.app']
+
+// Deploy Storage Account for Proxy Function App
+module proxyStorageAccount 'modules/storage-account.bicep' = {
+  name: '${baseAppName}-${currentRegion}-proxy-storage-deployment'
+  params: {
+    name: 'proxy${currentRegion}st'
+    location: location
+  }
+}
+
+// Deploy Nostria Proxy Function App for the current region
+module proxyFunctionApp 'modules/function-app.bicep' = {
+  name: '${baseAppName}-${currentRegion}-proxy-function-deployment'
+  params: {
+    name: 'nostria-${currentRegion}-proxy'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'proxy.${currentRegion}.nostria.app'
+    storageAccountName: proxyStorageAccount.outputs.name
+    appSettings: [
+      {
+        name: 'RELAY_REGION'
+        value: currentRegion
+      }
+      {
+        name: 'RELAY_ENDPOINTS'
+        value: join(relayEndpoints, ',')
+      }
+      {
+        name: 'DISCOVERY_ENDPOINT'
+        value: 'https://discovery.${currentRegion}.nostria.app'
+      }
+    ]
+  }
+}
+
+// Assign Storage Blob Data Contributor role to proxy function app
+module proxyStorageRoleAssignment 'modules/role-assignment.bicep' = {
+  name: '${baseAppName}-${currentRegion}-proxy-role-assignment'
+  params: {
+    storageAccountName: proxyStorageAccount.outputs.name
+    principalId: proxyFunctionApp.outputs.functionAppPrincipalId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
+  }
+}
+
+// Certificate for Proxy Function App
+module proxyFunctionAppCert 'modules/function-app-certificate.bicep' = {
+  name: '${baseAppName}-${currentRegion}-proxy-function-cert-deployment'
+  params: {
+    functionAppName: 'nostria-${currentRegion}-proxy'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'proxy.${currentRegion}.nostria.app'
+  }
+  dependsOn: [
+    proxyFunctionApp
+  ]
+}
+
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
@@ -269,3 +331,6 @@ output relayAppUrls array = [
 output mediaAppUrls array = [
   for i in range(0, mediaCount): 'https://${toLower(mediaNames[i])}.${currentRegion}.nostria.app'
 ]
+
+// Proxy Function App URL for the current region
+output proxyFunctionAppUrl string = 'https://proxy.${currentRegion}.nostria.app'

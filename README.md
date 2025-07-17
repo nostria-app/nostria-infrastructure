@@ -4,11 +4,13 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
 
 ## Infrastructure Components
 
-- **Linux App Service Plan (B1)**: Hosts all container applications
+- **Linux App Service Plan (B1)**: Hosts all container applications and function apps
 - **Container Apps**:
   - `discovery.nostria.app`: Discovery service (single instance)
   - `relay[N].nostria.app`: Relay services (multiple instances as needed)
   - `media[N].nostria.app`: Media services (multiple instances as needed)
+- **Function Apps**:
+  - `proxy.[region].nostria.app`: Proxy function for regional traffic routing (one per region)
 - **Storage Accounts**:
   - Each service has its own storage account with Azure File Share mounted to the container
   - Each storage account has a corresponding backup storage account

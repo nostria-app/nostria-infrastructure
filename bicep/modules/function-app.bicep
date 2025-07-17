@@ -65,6 +65,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         allowedOrigins: ['*']
         supportCredentials: false
       }
+      http20Enabled: true
+      alwaysOn: true
       use32BitWorkerProcess: false
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

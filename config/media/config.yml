@@ -120,7 +120,7 @@ media:
     videoCodec: "vp9"
 
 list:
-  requireAuth: false
+  requireAuth: true
   allowListOthers: false
 
 tor:

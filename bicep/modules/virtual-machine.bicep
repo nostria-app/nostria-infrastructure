@@ -29,6 +29,9 @@ param diagnosticsStorageAccountName string
 @description('Tags to apply to the resources')
 param tags object = {}
 
+@description('Force extension update by changing this value')
+param forceUpdate string = 'v1'
+
 // Variables
 var nicName = '${vmName}-nic'
 var osDiskName = '${vmName}-os-disk'
@@ -150,7 +153,7 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
 // VM Extension for installing and configuring strfry and Caddy
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
   parent: virtualMachine
-  name: 'strfry-caddy-setup'
+  name: 'strfry-caddy-setup-${forceUpdate}'
   location: location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'

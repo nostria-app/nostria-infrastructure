@@ -5,62 +5,79 @@ set -e
 exec > >(tee -a /var/log/vm-setup.log) 2>&1
 echo "Starting VM setup at $(date)"
 
+# Check if this is a re-run (services already exist)
+RERUN=false
+if systemctl list-units --full -all | grep -Fq "strfry.service"; then
+    echo "Detected existing strfry service - this appears to be a configuration update"
+    RERUN=true
+fi
+
 # Update system
 echo "Updating system packages..."
 export DEBIAN_FRONTEND=noninteractive
 
-# Configure proper package sources
-echo "Configuring package sources..."
-cat > /etc/apt/sources.list << 'EOF'
+if [ "$RERUN" = "false" ]; then
+    # Configure proper package sources
+    echo "Configuring package sources..."
+    cat > /etc/apt/sources.list << 'EOF'
 deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
 deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
 EOF
 
-apt-get update
-apt-get upgrade -y
-
-# Install required packages for strfry compilation
-echo "Installing build dependencies..."
-apt-get install -y build-essential git wget curl net-tools
-apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev
-
-# Verify essential tools are available
-if ! command -v make &> /dev/null; then
-    echo "ERROR: make command not found after installation"
-    exit 1
+    apt-get update
+    apt-get upgrade -y
+else
+    echo "Skipping package sources configuration (rerun detected)"
+    apt-get update
 fi
 
-if ! command -v g++ &> /dev/null; then
-    echo "ERROR: g++ command not found after installation"
-    exit 1
+# Install required packages for strfry compilation
+if [ "$RERUN" = "false" ]; then
+    echo "Installing build dependencies..."
+    apt-get install -y build-essential git wget curl net-tools
+    apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev
+
+    # Verify essential tools are available
+    if ! command -v make &> /dev/null; then
+        echo "ERROR: make command not found after installation"
+        exit 1
+    fi
+
+    if ! command -v g++ &> /dev/null; then
+        echo "ERROR: g++ command not found after installation"
+        exit 1
+    fi
+else
+    echo "Skipping build dependencies installation (rerun detected)"
 fi
 
 # Install Caddy using alternative method to avoid GPG issues
-echo "Installing Caddy..."
-# Install Caddy directly from GitHub releases (more reliable for automated environments)
-CADDY_VERSION="2.7.6"
-echo "Downloading Caddy v${CADDY_VERSION}..."
-wget -q "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" -O /tmp/caddy.tar.gz
-cd /tmp
-tar -xzf caddy.tar.gz
-mv caddy /usr/local/bin/
-chmod +x /usr/local/bin/caddy
-rm -f caddy.tar.gz LICENSE README.md
+if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/caddy" ]; then
+    echo "Installing Caddy..."
+    # Install Caddy directly from GitHub releases (more reliable for automated environments)
+    CADDY_VERSION="2.7.6"
+    echo "Downloading Caddy v${CADDY_VERSION}..."
+    wget -q "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" -O /tmp/caddy.tar.gz
+    cd /tmp
+    tar -xzf caddy.tar.gz
+    mv caddy /usr/local/bin/
+    chmod +x /usr/local/bin/caddy
+    rm -f caddy.tar.gz LICENSE README.md
 
-# Create caddy user and group
-groupadd --system caddy
-useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
+    # Create caddy user and group
+    groupadd --system caddy
+    useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
 
-# Create necessary directories
-mkdir -p /etc/caddy
-mkdir -p /var/log/caddy
-chown -R caddy:caddy /var/lib/caddy
-chown -R caddy:caddy /var/log/caddy
+    # Create necessary directories
+    mkdir -p /etc/caddy
+    mkdir -p /var/log/caddy
+    chown -R caddy:caddy /var/lib/caddy
+    chown -R caddy:caddy /var/log/caddy
 
-# Create systemd service for Caddy
-cat > /etc/systemd/system/caddy.service << 'EOF'
+    # Create systemd service for Caddy
+    cat > /etc/systemd/system/caddy.service << 'EOF'
 [Unit]
 Description=Caddy
 Documentation=https://caddyserver.com/docs/
@@ -83,34 +100,50 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 [Install]
 WantedBy=multi-user.target
 EOF
+else
+    echo "Skipping Caddy installation (already exists or rerun detected)"
+fi
 
 # Create strfry user
-echo "Creating strfry user..."
-useradd -r -s /bin/false -d /var/lib/strfry strfry
+if [ "$RERUN" = "false" ]; then
+    echo "Creating strfry user..."
+    useradd -r -s /bin/false -d /var/lib/strfry strfry
 
-# Create directories
-echo "Creating directories..."
-mkdir -p /var/lib/strfry
-mkdir -p /etc/strfry
-mkdir -p /var/log/strfry
-chown strfry:strfry /var/lib/strfry /var/log/strfry
+    # Create directories
+    echo "Creating directories..."
+    mkdir -p /var/lib/strfry
+    mkdir -p /etc/strfry
+    mkdir -p /var/log/strfry
+    chown strfry:strfry /var/lib/strfry /var/log/strfry
+else
+    echo "Skipping strfry user creation (rerun detected)"
+    # Ensure directories exist
+    mkdir -p /var/lib/strfry
+    mkdir -p /etc/strfry
+    mkdir -p /var/log/strfry
+    chown strfry:strfry /var/lib/strfry /var/log/strfry
+fi
 
 # Clone and compile strfry
-echo "Cloning and compiling strfry..."
-cd /tmp
-git clone https://github.com/hoytech/strfry
-cd strfry
-git submodule update --init
-make setup-golpe
-make -j$(nproc)
+if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/strfry" ]; then
+    echo "Cloning and compiling strfry..."
+    cd /tmp
+    git clone https://github.com/hoytech/strfry
+    cd strfry
+    git submodule update --init
+    make setup-golpe
+    make -j$(nproc)
 
-# Install strfry binary
-echo "Installing strfry binary..."
-cp strfry /usr/local/bin/
-chmod +x /usr/local/bin/strfry
+    # Install strfry binary
+    echo "Installing strfry binary..."
+    cp strfry /usr/local/bin/
+    chmod +x /usr/local/bin/strfry
+else
+    echo "Skipping strfry compilation (already exists or rerun detected)"
+fi
 
 # Create strfry configuration
-echo "Creating strfry configuration..."
+echo "Creating/updating strfry configuration..."
 cat > /etc/strfry/strfry.conf << 'EOF'
 ##
 ## strfry relay config for Nostria VM deployment
@@ -260,13 +293,18 @@ if ! /usr/local/bin/strfry --help > /dev/null 2>&1; then
     exit 1
 fi
 
-# Initialize the database as strfry user
-echo "Initializing strfry database..."
-sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf export --limit=0 > /dev/null 2>&1 || true
+# Initialize the database as strfry user (only if not already initialized)
+if [ "$RERUN" = "false" ] || [ ! -f "/var/lib/strfry/db/data.mdb" ]; then
+    echo "Initializing strfry database..."
+    sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf export --limit=0 > /dev/null 2>&1 || true
+else
+    echo "Skipping database initialization (already exists)"
+fi
 
 # Create systemd service for strfry
-echo "Creating strfry systemd service..."
-cat > /etc/systemd/system/strfry.service << 'EOF'
+if [ "$RERUN" = "false" ] || [ ! -f "/etc/systemd/system/strfry.service" ]; then
+    echo "Creating strfry systemd service..."
+    cat > /etc/systemd/system/strfry.service << 'EOF'
 [Unit]
 Description=strfry nostr relay
 After=network.target
@@ -300,9 +338,12 @@ LimitNOFILE=524288
 [Install]
 WantedBy=multi-user.target
 EOF
+else
+    echo "Skipping strfry systemd service creation (already exists)"
+fi
 
-# Configure Caddy
-echo "Configuring Caddy..."
+# Configure Caddy (always update the configuration)
+echo "Configuring/updating Caddy..."
 cat > /etc/caddy/Caddyfile << 'EOF'
 # Global options
 {
@@ -353,6 +394,12 @@ localhost:8080 {
     }
 }
 EOF
+
+# Always reload Caddy configuration after updating
+if systemctl is-active --quiet caddy; then
+    echo "Reloading Caddy configuration..."
+    systemctl reload caddy || systemctl restart caddy
+fi
 
 # Enable and start services
 echo "Enabling and starting services..."

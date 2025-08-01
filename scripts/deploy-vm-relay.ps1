@@ -88,6 +88,7 @@ if ($rgExists -eq "false") {
 # Prepare deployment parameters
 $deploymentName = "nostria-vm-relay-$Region-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 $templateFile = Join-Path $repoRoot "bicep\vm-relay.bicep"
+$forceUpdateValue = "v$(Get-Date -Format 'yyyyMMddHHmmss')"
 
 # Build deployment command
 $deployCommand = @(
@@ -100,6 +101,7 @@ $deployCommand = @(
     "location=$Location"
     "vmSize=$VmSize"
     "vmRelayCount=$VmRelayCount"
+    "forceUpdate=$forceUpdateValue"
     "sshPublicKey=$sshPublicKey"
 )
 

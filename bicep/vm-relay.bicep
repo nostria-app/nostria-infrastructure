@@ -27,6 +27,9 @@ param tags object = {
   DeploymentType: 'VM'
 }
 
+@description('Force extension update by changing this value')
+param forceUpdate string = 'v2'
+
 // Variables
 var vmRelayBaseName = '${baseAppName}-${currentRegion}-vm-relay'
 var vnetName = '${baseAppName}-${currentRegion}-vnet'
@@ -74,6 +77,7 @@ module vmRelayServers 'modules/virtual-machine.bicep' = [for i in range(0, vmRel
     virtualNetworkId: virtualNetwork.outputs.vnetId
     networkSecurityGroupId: networkSecurityGroup.outputs.nsgId
     diagnosticsStorageAccountName: diagnosticsStorage.outputs.name
+    forceUpdate: forceUpdate
     tags: tags
   }
 }]

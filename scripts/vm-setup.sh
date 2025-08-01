@@ -12,7 +12,7 @@ apt-get upgrade -y
 
 # Install required packages for strfry compilation
 echo "Installing build dependencies..."
-apt-get install -y git g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev curl
+apt-get install -y git g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev curl net-tools
 
 # Install Caddy
 echo "Installing Caddy..."
@@ -366,7 +366,7 @@ if ! pgrep -f "strfry.*relay" > /dev/null; then
 fi
 
 # Check if strfry is listening on port 7777
-if ! netstat -ln | grep -q ":7777.*LISTEN"; then
+if ! ss -ln | grep -q ":7777.*LISTEN"; then
     echo "ERROR: strfry not listening on port 7777"
     exit 1
 fi
@@ -378,7 +378,7 @@ if ! systemctl is-active --quiet caddy; then
 fi
 
 # Check if Caddy is listening on port 443
-if ! netstat -ln | grep -q ":443.*LISTEN"; then
+if ! ss -ln | grep -q ":443.*LISTEN"; then
     echo "ERROR: Caddy not listening on port 443"
     exit 1
 fi

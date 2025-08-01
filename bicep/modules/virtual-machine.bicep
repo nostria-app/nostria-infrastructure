@@ -151,6 +151,7 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
   parent: virtualMachine
   name: 'strfry-caddy-setup'
+  location: location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
     type: 'CustomScript'

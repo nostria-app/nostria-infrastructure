@@ -312,72 +312,44 @@ cat > /etc/caddy/Caddyfile << 'EOF'
 
 # Main site configuration for test.ribo.eu.nostria.app
 test.ribo.eu.nostria.app {
-    # Reverse proxy to strfry
+    # Reverse proxy to strfry WebSocket server
     reverse_proxy 127.0.0.1:7777
 
     # Security headers
-    header {
-        # Remove server information
-        -Server
-        # Security headers
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy strict-origin-when-cross-origin
-        # HSTS
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    }
+    header -Server
+    header X-Content-Type-Options nosniff
+    header X-Frame-Options DENY
+    header X-XSS-Protection "1; mode=block"
+    header Referrer-Policy strict-origin-when-cross-origin
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 
-    # Logging
+    # Access logging
     log {
         output file /var/log/caddy/access.log
         format json
     }
 
+    # Simple health check endpoint
+    respond /health "OK" 200
+
     # NIP-11 relay information endpoint
-    handle /.well-known/nostr.json {
-        header Content-Type "application/json"
-        respond `{
-            "names": {},
-            "relays": {
-                "test.ribo.eu.nostria.app": ["wss://test.ribo.eu.nostria.app"]
-            }
-        }` 200
-    }
-
-    # Health check endpoint
-    handle /health {
-        header Content-Type "text/plain"
-        respond "OK" 200
-    }
-
-    # Status endpoint
-    handle /status {
-        header Content-Type "application/json"
-        respond `{
-            "relay": "Nostria VM Relay",
-            "version": "1.0.0",
-            "description": "High-performance nostr relay on VM",
-            "contact": "admin@nostria.app",
-            "supported_nips": [1, 2, 4, 9, 11, 15, 16, 20, 22, 28, 33, 40]
-        }` 200
+    @nostr_json path /.well-known/nostr.json
+    handle @nostr_json {
+        header Content-Type application/json
+        respond 200 {
+            body '{"names":{},"relays":{"test.ribo.eu.nostria.app":["wss://test.ribo.eu.nostria.app"]}}'
+        }
     }
 }
 
-# Monitoring endpoint (internal only)
+# Internal monitoring endpoint
 localhost:8080 {
-    handle /metrics {
-        metrics
-    }
-    
-    handle /strfry/* {
-        uri strip_prefix /strfry
+    # Health check for monitoring
+    respond /health "healthy" 200
+
+    # Proxy to strfry monitoring interface
+    handle_path /strfry/* {
         reverse_proxy 127.0.0.1:7778
-    }
-    
-    handle /health {
-        header Content-Type "application/json"
-        respond `{"status": "healthy", "timestamp": "{time.now.unix}"}` 200
     }
 }
 EOF

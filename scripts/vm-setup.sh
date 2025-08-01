@@ -99,7 +99,7 @@ relay {
     port = 7777
 
     # Set OS-limit on maximum number of open files/sockets (if 0, don't attempt to set) (restart required)
-    nofiles = 1000000
+    nofiles = 500000
 
     # HTTP header that contains the client's real IP, before reverse proxying (X-Forwarded-For, etc)
     realIpHeader = "X-Forwarded-For"
@@ -191,6 +191,17 @@ EOF
 mkdir -p /var/lib/strfry/db
 chown -R strfry:strfry /var/lib/strfry
 
+# Test strfry binary before creating service
+echo "Testing strfry binary..."
+if ! /usr/local/bin/strfry --help > /dev/null 2>&1; then
+    echo "ERROR: strfry binary test failed"
+    exit 1
+fi
+
+# Initialize the database as strfry user
+echo "Initializing strfry database..."
+sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf export --limit=0 > /dev/null 2>&1 || true
+
 # Create systemd service for strfry
 echo "Creating strfry systemd service..."
 cat > /etc/systemd/system/strfry.service << 'EOF'
@@ -215,8 +226,14 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/strfry
+ReadWritePaths=/var/lib/strfry /var/log/strfry
 ReadOnlyPaths=/etc/strfry
+
+# Environment variables
+Environment=STRFRY_DB=/var/lib/strfry/db
+
+# File descriptor limits
+LimitNOFILE=524288
 
 [Install]
 WantedBy=multi-user.target
@@ -325,9 +342,45 @@ systemctl enable strfry
 systemctl enable caddy
 
 # Start strfry first, then Caddy
+echo "Starting strfry service..."
 systemctl start strfry
-sleep 5
+sleep 10
+
+# Check if strfry started successfully
+if ! systemctl is-active --quiet strfry; then
+    echo "ERROR: strfry failed to start, checking logs..."
+    journalctl -u strfry --no-pager -l
+    echo "Attempting to run strfry manually for debugging..."
+    sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf relay &
+    STRFRY_PID=$!
+    sleep 5
+    if kill -0 $STRFRY_PID 2>/dev/null; then
+        echo "strfry started manually, killing and restarting service..."
+        kill $STRFRY_PID
+        systemctl restart strfry
+        sleep 5
+    fi
+fi
+
+echo "Starting caddy service..."
 systemctl start caddy
+
+# Configure system limits for strfry
+echo "Configuring system limits..."
+cat >> /etc/security/limits.conf << 'EOF'
+# Increase file descriptor limits for strfry
+strfry soft nofile 65536
+strfry hard nofile 524288
+* soft nofile 65536
+* hard nofile 524288
+EOF
+
+# Configure systemd limits
+mkdir -p /etc/systemd/system.conf.d/
+cat > /etc/systemd/system.conf.d/limits.conf << 'EOF'
+[Manager]
+DefaultLimitNOFILE=524288
+EOF
 
 # Configure firewall (ufw)
 echo "Configuring firewall..."
@@ -405,7 +458,22 @@ apt-get autoclean
 
 echo "VM setup completed successfully at $(date)"
 echo "Services status:"
-systemctl status strfry --no-pager -l
-systemctl status caddy --no-pager -l
+systemctl status strfry --no-pager -l || true
+systemctl status caddy --no-pager -l || true
+
+# Verify services are running
+echo "Verifying services..."
+sleep 10
+
+echo "Running health check..."
+if /usr/local/bin/strfry-health-check.sh; then
+    echo "SUCCESS: All services are healthy"
+else
+    echo "WARNING: Health check failed, showing logs for debugging..."
+    echo "strfry logs:"
+    journalctl -u strfry --no-pager -n 20 || true
+    echo "caddy logs:"
+    journalctl -u caddy --no-pager -n 20 || true
+fi
 
 echo "Setup completed! The relay should be accessible at https://test.ribo.eu.nostria.app"

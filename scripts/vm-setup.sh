@@ -17,7 +17,11 @@ apt-get install -y git g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers
 # Install Caddy
 echo "Installing Caddy..."
 apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor --batch --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+# Download and install GPG key without interactive prompts
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' -o /tmp/caddy-key.gpg
+gpg --batch --yes --dearmor --quiet /tmp/caddy-key.gpg 2>/dev/null
+mv /tmp/caddy-key.gpg.gpg /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+rm -f /tmp/caddy-key.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
 apt-get update
 apt-get install -y caddy

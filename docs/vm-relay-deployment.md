@@ -2,6 +2,23 @@
 
 This directory contains the infrastructure and configuration for deploying Nostria relay servers on dedicated Azure VMs using strfry and Caddy.
 
+## Check logs
+
+ssh azureuser@<VM-PUBLIC-IP>
+
+# Check strfry status
+sudo systemctl status strfry
+
+# Check if strfry is listening on port 7777
+sudo ss -tulpn | grep 7777
+
+# Check if Caddy is running and listening on port 443
+sudo systemctl status caddy
+sudo ss -tulpn | grep 443
+
+# Run the health check
+/usr/local/bin/strfry-health-check.sh
+
 ## Overview
 
 The VM relay deployment provides:

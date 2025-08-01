@@ -7,12 +7,35 @@ echo "Starting VM setup at $(date)"
 
 # Update system
 echo "Updating system packages..."
+export DEBIAN_FRONTEND=noninteractive
+
+# Configure proper package sources
+echo "Configuring package sources..."
+cat > /etc/apt/sources.list << 'EOF'
+deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+EOF
+
 apt-get update
 apt-get upgrade -y
 
 # Install required packages for strfry compilation
 echo "Installing build dependencies..."
-apt-get install -y git g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev curl net-tools
+apt-get install -y build-essential git wget curl net-tools
+apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev
+
+# Verify essential tools are available
+if ! command -v make &> /dev/null; then
+    echo "ERROR: make command not found after installation"
+    exit 1
+fi
+
+if ! command -v g++ &> /dev/null; then
+    echo "ERROR: g++ command not found after installation"
+    exit 1
+fi
 
 # Install Caddy using alternative method to avoid GPG issues
 echo "Installing Caddy..."

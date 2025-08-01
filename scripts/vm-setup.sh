@@ -336,32 +336,31 @@ test.ribo.eu.nostria.app {
 
     # NIP-11 relay information endpoint
     handle /.well-known/nostr.json {
+        header Content-Type "application/json"
         respond `{
             "names": {},
             "relays": {
                 "test.ribo.eu.nostria.app": ["wss://test.ribo.eu.nostria.app"]
             }
-        }` 200 {
-            Content-Type "application/json"
-        }
+        }` 200
     }
 
     # Health check endpoint
     handle /health {
+        header Content-Type "text/plain"
         respond "OK" 200
     }
 
     # Status endpoint
     handle /status {
+        header Content-Type "application/json"
         respond `{
             "relay": "Nostria VM Relay",
             "version": "1.0.0",
             "description": "High-performance nostr relay on VM",
             "contact": "admin@nostria.app",
             "supported_nips": [1, 2, 4, 9, 11, 15, 16, 20, 22, 28, 33, 40]
-        }` 200 {
-            Content-Type "application/json"
-        }
+        }` 200
     }
 }
 
@@ -377,9 +376,8 @@ localhost:8080 {
     }
     
     handle /health {
-        respond `{"status": "healthy", "timestamp": "{time.now.unix}"}` 200 {
-            Content-Type "application/json"
-        }
+        header Content-Type "application/json"
+        respond `{"status": "healthy", "timestamp": "{time.now.unix}"}` 200
     }
 }
 EOF

@@ -14,17 +14,52 @@ apt-get upgrade -y
 echo "Installing build dependencies..."
 apt-get install -y git g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev curl net-tools
 
-# Install Caddy
+# Install Caddy using alternative method to avoid GPG issues
 echo "Installing Caddy..."
-apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-# Download and install GPG key without interactive prompts
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' -o /tmp/caddy-key.gpg
-gpg --batch --yes --dearmor --quiet /tmp/caddy-key.gpg 2>/dev/null
-mv /tmp/caddy-key.gpg.gpg /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-rm -f /tmp/caddy-key.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt-get update
-apt-get install -y caddy
+# Install Caddy directly from GitHub releases (more reliable for automated environments)
+CADDY_VERSION="2.7.6"
+echo "Downloading Caddy v${CADDY_VERSION}..."
+wget -q "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" -O /tmp/caddy.tar.gz
+cd /tmp
+tar -xzf caddy.tar.gz
+mv caddy /usr/local/bin/
+chmod +x /usr/local/bin/caddy
+rm -f caddy.tar.gz LICENSE README.md
+
+# Create caddy user and group
+groupadd --system caddy
+useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
+
+# Create necessary directories
+mkdir -p /etc/caddy
+mkdir -p /var/log/caddy
+chown -R caddy:caddy /var/lib/caddy
+chown -R caddy:caddy /var/log/caddy
+
+# Create systemd service for Caddy
+cat > /etc/systemd/system/caddy.service << 'EOF'
+[Unit]
+Description=Caddy
+Documentation=https://caddyserver.com/docs/
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=notify
+User=caddy
+Group=caddy
+ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --force
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+LimitNPROC=1048576
+PrivateTmp=true
+ProtectSystem=full
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 # Create strfry user
 echo "Creating strfry user..."
@@ -334,10 +369,6 @@ localhost:8080 {
     }
 }
 EOF
-
-# Create log directory for Caddy
-mkdir -p /var/log/caddy
-chown caddy:caddy /var/log/caddy
 
 # Enable and start services
 echo "Enabling and starting services..."

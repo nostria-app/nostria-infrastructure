@@ -1,7 +1,7 @@
 # Global options
 {
     # Automatic HTTPS with Let's Encrypt
-    auto_https on
+    # auto_https on
     email admin@nostria.app
     
     # Enable admin API on localhost only

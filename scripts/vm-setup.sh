@@ -313,15 +313,7 @@ cat > /etc/caddy/Caddyfile << 'EOF'
 # Main site configuration for test.ribo.eu.nostria.app
 test.ribo.eu.nostria.app {
     # Reverse proxy to strfry
-    reverse_proxy 127.0.0.1:7777 {
-        # WebSocket support
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
+    reverse_proxy 127.0.0.1:7777
 
     # Security headers
     header {

@@ -159,7 +159,7 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' =
     autoUpgradeMinorVersion: true
     settings: {
       fileUris: [
-        'https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/vm-setup.sh'
+        'https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/refs/heads/main/scripts/vm-setup.sh'
       ]
     }
     protectedSettings: {

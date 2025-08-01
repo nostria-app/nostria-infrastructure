@@ -1,14 +1,17 @@
 #!/bin/bash
 set -e
 
+# Get force update parameter if provided
+FORCE_UPDATE=${1:-"initial"}
+
 # Log all output to a file for debugging
 exec > >(tee -a /var/log/vm-setup.log) 2>&1
-echo "Starting VM setup at $(date)"
+echo "Starting VM setup at $(date) with force update: $FORCE_UPDATE"
 
 # Check if this is a re-run (services already exist)
 RERUN=false
 if systemctl list-units --full -all | grep -Fq "strfry.service"; then
-    echo "Detected existing strfry service - this appears to be a configuration update"
+    echo "Detected existing strfry service - this appears to be a configuration update (force update: $FORCE_UPDATE)"
     RERUN=true
 fi
 

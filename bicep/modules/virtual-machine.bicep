@@ -153,7 +153,7 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
 // VM Extension for installing and configuring strfry and Caddy
 resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' = {
   parent: virtualMachine
-  name: 'strfry-caddy-setup-${forceUpdate}'
+  name: 'strfry-caddy-setup'
   location: location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
@@ -166,7 +166,7 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' =
       ]
     }
     protectedSettings: {
-      commandToExecute: 'bash vm-setup.sh'
+      commandToExecute: 'bash vm-setup.sh ${forceUpdate}'
     }
   }
 }

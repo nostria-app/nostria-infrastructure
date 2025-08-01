@@ -306,7 +306,6 @@ echo "Configuring Caddy..."
 cat > /etc/caddy/Caddyfile << 'EOF'
 # Global options
 {
-    auto_https on
     email admin@nostria.app
     admin localhost:2019
 }

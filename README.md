@@ -11,6 +11,10 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
   - `media[N].nostria.app`: Media services (multiple instances as needed)
 - **Function Apps**:
   - `proxy.[region].nostria.app`: Proxy function for regional traffic routing (one per region)
+- **VM Relay Servers** (NEW):
+  - `test.ribo.eu.nostria.app`: Dedicated VM relay with strfry and Caddy
+  - High-performance nostr relay on dedicated infrastructure
+  - Automatic HTTPS/TLS certificate management
 - **Storage Accounts**:
   - Each service has its own storage account with Azure File Share mounted to the container
   - Each storage account has a corresponding backup storage account
@@ -26,6 +30,12 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
 ### Login to Azure
 
 ```powershell
+Install-Module -Name Az -AllowClobber -Scope CurrentUser
+
+Import-Module Az
+
+Get-Command Connect-AzAccount
+
 # Login to your Azure account
 Connect-AzAccount
 
@@ -43,14 +53,68 @@ When a new image of the Discovery Relay is built using the separate repo, run th
  ./scripts/update-web-app.ps1 -WebAppNames @("nostria-discovery-eu") -ResourceGroup "nostria-eu" -ContainerImage "ghcr.io/nostria-app/discovery-relay:9e75597ed5c7ad4e97f5278b35f325ded9465b43"
 ```
 
+### Manage VM Relays
+
+For VM-based relay management:
+
+```bash
+# SSH to the VM relay
+ssh azureuser@<VM-PUBLIC-IP>
+
+# Check relay status
+/usr/local/bin/strfry-health-check.sh
+
+# View service logs
+sudo journalctl -u strfry -f
+sudo journalctl -u caddy -f
+
+# Restart services
+sudo systemctl restart strfry
+sudo systemctl restart caddy
+```
+
 ### Deploying the Infrastructure
 
-Use the `deploy.ps1` script to deploy the entire infrastructure:
+Use the deployment scripts to deploy the infrastructure:
 
 ```powershell
- ./scripts/deploy-main.ps1
- ./scripts/deploy-region.ps1 -Regions eu,us,af
+# Deploy main infrastructure
+./scripts/deploy-main.ps1
+
+# Deploy regional container-based services
+./scripts/deploy-region.ps1 -Regions eu,us,af
+
+# Deploy VM-based relay servers (NEW)
+./scripts/deploy-vm-relay.ps1 -Region "eu" -VmRelayCount 1
 ```
+
+### VM Relay Deployment (NEW)
+
+For high-performance dedicated relay servers:
+
+```powershell
+# Deploy a single VM relay in EU region
+./scripts/deploy-vm-relay.ps1 -Region "eu"
+
+# Deploy multiple VM relays with custom settings
+./scripts/deploy-vm-relay.ps1 `
+    -Region "eu" `
+    -VmRelayCount 2 `
+    -VmSize "Standard_D2s_v3" `
+    -ResourceGroupName "nostria-prod-eu"
+```
+
+**Features:**
+- Dedicated Ubuntu VMs with strfry nostr relay
+- Caddy reverse proxy with automatic HTTPS
+- Domain: `test.ribo.eu.nostria.app`
+- High-performance C++ implementation
+- Built-in monitoring and health checks
+
+**Requirements:**
+- SSH public key at `$env:USERPROFILE\.ssh\id_rsa.pub`
+- DNS configuration for the domain
+- Azure subscription with VM deployment permissions
 
 Parameters:
 - `ResourceGroupName`: Name of the resource group (default: "nostria")

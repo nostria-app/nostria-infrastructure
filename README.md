@@ -12,7 +12,7 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
 - **Function Apps**:
   - `proxy.[region].nostria.app`: Proxy function for regional traffic routing (one per region)
 - **VM Relay Servers** (NEW):
-  - `test.ribo.eu.nostria.app`: Dedicated VM relay with strfry and Caddy
+  - `ribo.eu.nostria.app`: Dedicated VM relay with strfry and Caddy
   - High-performance nostr relay on dedicated infrastructure
   - Automatic HTTPS/TLS certificate management
 - **Storage Accounts**:
@@ -107,7 +107,7 @@ For high-performance dedicated relay servers:
 **Features:**
 - Dedicated Ubuntu VMs with strfry nostr relay
 - Caddy reverse proxy with automatic HTTPS
-- Domain: `test.ribo.eu.nostria.app`
+- Domain: `ribo.eu.nostria.app`
 - High-performance C++ implementation
 - Built-in monitoring and health checks
 

@@ -354,8 +354,8 @@ cat > /etc/caddy/Caddyfile << 'EOF'
     admin localhost:2019
 }
 
-# Main site configuration for test.ribo.eu.nostria.app
-test.ribo.eu.nostria.app {
+# Main site configuration for ribo.eu.nostria.app
+ribo.eu.nostria.app {
     # Reverse proxy to strfry WebSocket server
     reverse_proxy 127.0.0.1:7777
 
@@ -381,7 +381,7 @@ test.ribo.eu.nostria.app {
     handle @nostr_json {
         header Content-Type application/json
         respond 200 {
-            body '{"names":{},"relays":{"test.ribo.eu.nostria.app":["wss://test.ribo.eu.nostria.app"]}}'
+            body '{"names":{},"relays":{"ribo.eu.nostria.app":["wss://ribo.eu.nostria.app"]}}'
         }
     }
 }
@@ -545,4 +545,4 @@ else
     journalctl -u caddy --no-pager -n 20 || true
 fi
 
-echo "Setup completed! The relay should be accessible at https://test.ribo.eu.nostria.app"
+echo "Setup completed! The relay should be accessible at https://ribo.eu.nostria.app"

@@ -143,8 +143,8 @@ try {
             
             Write-StatusMessage "" -Type Info
             Write-StatusMessage "Next steps:" -Type Info
-            Write-StatusMessage "1. Update DNS records to point test.ribo.eu.nostria.app to the VM public IP" -Type Info
-            Write-StatusMessage "2. The relay should be accessible at https://test.ribo.eu.nostria.app once DNS propagates" -Type Info
+            Write-StatusMessage "1. Update DNS records to point ribo.eu.nostria.app to the VM public IP" -Type Info
+            Write-StatusMessage "2. The relay should be accessible at https://ribo.eu.nostria.app once DNS propagates" -Type Info
             Write-StatusMessage "3. You can SSH to the VM using: ssh $($env:USERNAME)@<VM-Public-IP>" -Type Info
             Write-StatusMessage "4. Check relay status: /usr/local/bin/strfry-health-check.sh" -Type Info
         } else {

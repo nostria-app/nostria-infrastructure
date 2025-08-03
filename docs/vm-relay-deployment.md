@@ -57,16 +57,16 @@ Internet → Azure Load Balancer → Caddy (Port 443/80) → strfry (Port 7777)
    ```
 
 2. **Configure DNS:**
-   - Point `test.ribo.eu.nostria.app` to the VM's public IP
+   - Point `ribo.eu.nostria.app` to the VM's public IP
    - Wait for DNS propagation (5-15 minutes)
 
 3. **Verify Deployment:**
    ```bash
    # Test WebSocket connection
-   wscat -c wss://test.ribo.eu.nostria.app
+   wscat -c wss://ribo.eu.nostria.app
    
    # Check relay info (NIP-11)
-   curl https://test.ribo.eu.nostria.app/status
+   curl https://ribo.eu.nostria.app/status
    ```
 
 ### Advanced Deployment
@@ -264,7 +264,7 @@ sudo apt update && sudo apt upgrade caddy
 
 Configure your monitoring system to check:
 
-- **HTTPS endpoint:** `https://test.ribo.eu.nostria.app/health`
+- **HTTPS endpoint:** `https://ribo.eu.nostria.app/health`
 - **VM metrics:** Via Azure Monitor
 - **Service status:** Via custom scripts or Azure Monitor
 
@@ -278,7 +278,7 @@ Configure your monitoring system to check:
    sudo journalctl -u caddy -f
    
    # Verify DNS resolution
-   nslookup test.ribo.eu.nostria.app
+   nslookup ribo.eu.nostria.app
    ```
 
 2. **strfry not accepting connections:**

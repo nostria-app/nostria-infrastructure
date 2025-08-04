@@ -29,11 +29,11 @@ deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe mu
 deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
 EOF
 
-    apt-get update
+    apt-get update || true
     apt-get upgrade -y
 else
     echo "Skipping package sources configuration (rerun detected)"
-    apt-get update
+    apt-get update || true
 fi
 
 # Install required packages for strfry compilation

@@ -12,9 +12,11 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
 - **Function Apps**:
   - `proxy.[region].nostria.app`: Proxy function for regional traffic routing (one per region)
 - **VM Relay Servers** (NEW):
-  - `ribo.eu.nostria.app`: Dedicated VM relay with strfry and Caddy
+  - `ribo.[region].nostria.app`: First dedicated VM relay with strfry and Caddy
+  - `rilo.[region].nostria.app`: Second dedicated VM relay (when VmRelayCount > 1)
   - High-performance nostr relay on dedicated infrastructure
   - Automatic HTTPS/TLS certificate management
+  - Deployed to resource group: `nostria-[region]-relays`
 - **Storage Accounts**:
   - Each service has its own storage account with Azure File Share mounted to the container
   - Each storage account has a corresponding backup storage account
@@ -100,20 +102,20 @@ For high-performance dedicated relay servers:
 ./scripts/deploy-vm-relay.ps1 `
     -Region "eu" `
     -VmRelayCount 2 `
-    -VmSize "Standard_D2s_v3" `
-    -ResourceGroupName "nostria-prod-eu"
+    -VmSize "Standard_D2s_v3"
 ```
 
 **Features:**
 - Dedicated Ubuntu VMs with strfry nostr relay
 - Caddy reverse proxy with automatic HTTPS
-- Domain: `ribo.eu.nostria.app`
+- Domains follow naming pattern: `ribo.[region].nostria.app`, `rilo.[region].nostria.app`, etc.
 - High-performance C++ implementation
 - Built-in monitoring and health checks
+- Resource group: `nostria-[region]-relays`
 
 **Requirements:**
 - SSH public key at `$env:USERPROFILE\.ssh\id_rsa.pub`
-- DNS configuration for the domain
+- DNS configuration for each relay domain
 - Azure subscription with VM deployment permissions
 
 Parameters:

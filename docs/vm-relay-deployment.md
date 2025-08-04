@@ -57,12 +57,13 @@ Internet → Azure Load Balancer → Caddy (Port 443/80) → strfry (Port 7777)
    ```
 
 2. **Configure DNS:**
-   - Point `ribo.eu.nostria.app` to the VM's public IP
+   - Point `ribo.[region].nostria.app` to the VM's public IP
+   - For multiple VMs, point `rilo.[region].nostria.app`, `rifu.[region].nostria.app`, etc. to their respective IPs
    - Wait for DNS propagation (5-15 minutes)
 
 3. **Verify Deployment:**
    ```bash
-   # Test WebSocket connection
+   # Test WebSocket connection (for EU region example)
    wscat -c wss://ribo.eu.nostria.app
    
    # Check relay info (NIP-11)
@@ -75,13 +76,14 @@ For production deployments with custom settings:
 
 ```powershell
 ./scripts/deploy-vm-relay.ps1 `
-    -ResourceGroupName "nostria-prod-eu" `
     -Location "westeurope" `
     -Region "eu" `
     -VmSize "Standard_D2s_v3" `
     -VmRelayCount 2 `
     -SshPublicKeyPath "C:\path\to\your\public\key.pub"
 ```
+
+**Note:** This will create VMs named `nostria-eu-ribo-vm` and `nostria-eu-rilo-vm` in resource group `nostria-eu-relays`.
 
 ## Configuration
 

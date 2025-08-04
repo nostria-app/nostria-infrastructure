@@ -20,6 +20,60 @@ param adminUsername string = 'azureuser'
 @description('Number of VM relay servers to deploy')
 param vmRelayCount int = 1
 
+@description('Relay names to use for VM naming')
+param relayNames array = [
+  'ribo'
+  'rilo'
+  'rifu'
+  'rixi'
+  'rova'
+  'ryma'
+  'robo'
+  'ruku'
+  'raze'
+  'ruby'
+  'ramu'
+  'rizo'
+  'rika'
+  'rulo'
+  'ruvi'
+  'rino'
+  'riby'
+  'rask'
+  'rofo'
+  'rilz'
+  'rudo'
+  'remo'
+  'rinz'
+  'rupi'
+  'rozi'
+  'ruco'
+  'rima'
+  'ropi'
+  'ruzo'
+  'riku'
+  'riry'
+  'riso'
+  'ruzz'
+  'ropo'
+  'ruzi'
+  'rilv'
+  'rork'
+  'ramy'
+  'rozo'
+  'rimp'
+  'runo'
+  'ripp'
+  'rino'
+  'riko'
+  'rufo'
+  'repo'
+  'romy'
+  'rilz'
+  'raku'
+  'rumo'
+]
+
 @description('Tags to apply to the resources')
 param tags object = {
   Environment: 'Production'
@@ -31,7 +85,7 @@ param tags object = {
 param forceUpdate string = 'v2'
 
 // Variables
-var vmRelayBaseName = '${baseAppName}-${currentRegion}-vm-relay'
+var vmRelayBaseName = '${baseAppName}-${currentRegion}'
 var vnetName = '${baseAppName}-${currentRegion}-vnet'
 var nsgName = '${baseAppName}-${currentRegion}-vm-nsg'
 var storageAccountName = 'nostria${currentRegion}vmst'
@@ -67,14 +121,14 @@ module networkSecurityGroup 'modules/network-security-group.bicep' = {
 
 // Deploy VM Relay Servers
 module vmRelayServers 'modules/virtual-machine.bicep' = [for i in range(0, vmRelayCount): {
-  name: '${vmRelayBaseName}-${i + 1}-deployment'
+  name: '${vmRelayBaseName}-${relayNames[i]}-vm-deployment'
   params: {
-    vmName: '${vmRelayBaseName}-${i + 1}'
+    vmName: '${vmRelayBaseName}-${relayNames[i]}-vm'
     location: location
     vmSize: vmSize
     adminUsername: adminUsername
     sshPublicKey: sshPublicKey
-    virtualNetworkId: virtualNetwork.outputs.vnetId
+    subnetId: virtualNetwork.outputs.vmSubnetId
     networkSecurityGroupId: networkSecurityGroup.outputs.nsgId
     diagnosticsStorageAccountName: diagnosticsStorage.outputs.name
     forceUpdate: forceUpdate

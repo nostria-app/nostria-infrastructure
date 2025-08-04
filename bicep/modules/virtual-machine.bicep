@@ -14,11 +14,8 @@ param adminUsername string = 'azureuser'
 @secure()
 param sshPublicKey string
 
-@description('Virtual network resource ID')
-param virtualNetworkId string
-
-@description('Subnet name within the virtual network')
-param subnetName string = 'vm-subnet'
+@description('Subnet resource ID for the VM network interface')
+param subnetId string
 
 @description('Network security group resource ID')
 param networkSecurityGroupId string
@@ -36,16 +33,6 @@ param forceUpdate string = 'v1'
 var nicName = '${vmName}-nic'
 var osDiskName = '${vmName}-os-disk'
 var publicIpName = '${vmName}-pip'
-
-// Get the subnet reference
-resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' existing = {
-  name: split(virtualNetworkId, '/')[8]
-}
-
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
-  parent: virtualNetwork
-  name: subnetName
-}
 
 // Public IP for the VM
 resource publicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
@@ -79,7 +66,7 @@ resource networkInterface 'Microsoft.Network/networkInterfaces@2023-05-01' = {
             id: publicIp.id
           }
           subnet: {
-            id: subnet.id
+            id: subnetId
           }
         }
       }

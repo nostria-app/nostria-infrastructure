@@ -177,6 +177,12 @@ try {
                 Write-StatusMessage "Discovery Relay FQDN:" -Type Success
                 Write-Host "  - $($outputs.discoveryRelayFqdn.value)" -ForegroundColor Green
             }
+            if ($outputs.dataDiskName) {
+                Write-StatusMessage "Data Disk for Database:" -Type Success
+                Write-Host "  - Name: $($outputs.dataDiskName.value)" -ForegroundColor Green
+                Write-Host "  - Size: 64GB StandardSSD_LRS" -ForegroundColor Green
+                Write-Host "  - Mount: /var/lib/strfry (strfry database)" -ForegroundColor Green
+            }
         } else {
             Write-StatusMessage "ERROR: Deployment not found after $maxRetries attempts. It may have failed to start or was never created." -Type Error
             Write-StatusMessage "No deployment is visible in the Azure Portal for this resource group and name." -Type Error
@@ -188,6 +194,11 @@ try {
         }
         
         Write-StatusMessage "" -Type Info
+        Write-StatusMessage "Storage Configuration:" -Type Info
+        Write-StatusMessage "- OS Disk: 30GB Premium_LRS (system files)" -Type Info
+        Write-StatusMessage "- Data Disk: 64GB StandardSSD_LRS (strfry database at /var/lib/strfry)" -Type Info
+        Write-StatusMessage "- Database can be expanded later via Azure Portal if needed" -Type Info
+        Write-StatusMessage "" -Type Info
         Write-StatusMessage "Next steps:" -Type Info
         Write-StatusMessage "1. Update DNS records to point discovery.$Region.nostria.app to the VM public IP" -Type Info
         Write-StatusMessage "2. The discovery relay should be accessible at https://discovery.$Region.nostria.app once DNS propagates" -Type Info
@@ -197,8 +208,9 @@ try {
         Write-StatusMessage "" -Type Info
         Write-StatusMessage "Discovery Relay Configuration:" -Type Info
         Write-StatusMessage "- Config file: /etc/strfry/strfry.conf (uses discovery-relay config)" -Type Info
-        Write-StatusMessage "- Database: /var/lib/strfry/db" -Type Info
+        Write-StatusMessage "- Database: /var/lib/strfry/db (on dedicated 64GB SSD)" -Type Info
         Write-StatusMessage "- Service: systemctl status strfry" -Type Info
+        Write-StatusMessage "- Check disk usage: df -h /var/lib/strfry" -Type Info
         
     } else {
         Write-StatusMessage "Deployment failed with exit code: $azExitCode" -Type Error

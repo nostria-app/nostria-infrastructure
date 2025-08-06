@@ -32,6 +32,7 @@ param forceUpdate string = 'v1'
 // Variables
 var nicName = '${vmName}-nic'
 var osDiskName = '${vmName}-os-disk'
+var dataDiskName = '${vmName}-data-disk'
 var publicIpName = '${vmName}-pip'
 
 // Public IP for the VM
@@ -48,6 +49,24 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
     dnsSettings: {
       domainNameLabel: vmName
     }
+  }
+}
+
+// Data disk for strfry LMDB database
+resource dataDisk 'Microsoft.Compute/disks@2023-04-02' = {
+  name: dataDiskName
+  location: location
+  tags: tags
+  sku: {
+    name: 'StandardSSD_LRS' // Cost-effective SSD tier
+  }
+  properties: {
+    diskSizeGB: 64
+    creationData: {
+      createOption: 'Empty'
+    }
+    diskIOPSReadWrite: 500 // Default for StandardSSD_LRS
+    diskMBpsReadWrite: 60  // Default for StandardSSD_LRS
   }
 }
 
@@ -120,6 +139,17 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
         }
         diskSizeGB: 30
       }
+      dataDisks: [
+        {
+          name: dataDiskName
+          lun: 0
+          caching: 'ReadWrite'
+          createOption: 'Attach'
+          managedDisk: {
+            id: dataDisk.id
+          }
+        }
+      ]
     }
     networkProfile: {
       networkInterfaces: [
@@ -165,3 +195,5 @@ output publicIpAddress string = publicIp.properties.ipAddress
 output privateIpAddress string = networkInterface.properties.ipConfigurations[0].properties.privateIPAddress
 output principalId string = virtualMachine.identity.principalId
 output fqdn string = publicIp.properties.dnsSettings.fqdn
+output dataDiskId string = dataDisk.id
+output dataDiskName string = dataDisk.name

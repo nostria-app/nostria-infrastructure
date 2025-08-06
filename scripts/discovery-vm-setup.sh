@@ -1,7 +1,51 @@
 #!/bin/bash
 set -e
 
-# Get force update parameter if provided
+#     # Configure package sources
+    echo "Configuring package sources..."
+    cat > /etc/apt/sources.list << 'EOF'
+deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+EOF
+
+    apt-get update || true
+    apt-get upgrade -y
+
+    # Setup data disk for strfry database
+    echo "Setting up data disk for strfry database..."
+    
+    # Find the data disk (should be the first unpartitioned disk that's not the OS disk)
+    DATA_DISK=$(lsblk -dn -o NAME,SIZE | grep -v "$(lsblk -dn -o NAME | head -n1)" | head -n1 | awk '{print $1}')
+    
+    if [ -n "$DATA_DISK" ]; then
+        echo "Found data disk: /dev/$DATA_DISK"
+        
+        # Create partition table and partition
+        parted /dev/$DATA_DISK --script mklabel gpt
+        parted /dev/$DATA_DISK --script mkpart primary ext4 0% 100%
+        
+        # Format the partition with ext4
+        mkfs.ext4 -F /dev/${DATA_DISK}1
+        
+        # Create mount point
+        mkdir -p /var/lib/strfry
+        
+        # Get UUID for permanent mounting
+        DATA_UUID=$(blkid -s UUID -o value /dev/${DATA_DISK}1)
+        
+        # Add to fstab for permanent mounting
+        echo "UUID=$DATA_UUID /var/lib/strfry ext4 defaults,noatime 0 2" >> /etc/fstab
+        
+        # Mount the disk
+        mount /var/lib/strfry
+        
+        echo "Data disk mounted successfully at /var/lib/strfry"
+    else
+        echo "No additional data disk found, using OS disk for database"
+        mkdir -p /var/lib/strfry
+    fipdate parameter if provided
 FORCE_UPDATE=${1:-"initial"}
 
 # Log all output to a file for debugging
@@ -112,19 +156,19 @@ if [ "$RERUN" = "false" ]; then
     echo "Creating strfry user..."
     useradd -r -s /bin/false -d /var/lib/strfry strfry
 
-    # Create directories
+    # Create directories (after data disk is mounted)
     echo "Creating directories..."
-    mkdir -p /var/lib/strfry
+    mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
-    chown strfry:strfry /var/lib/strfry /var/log/strfry
+    chown -R strfry:strfry /var/lib/strfry /var/log/strfry
 else
     echo "Skipping strfry user creation (rerun detected)"
-    # Ensure directories exist
-    mkdir -p /var/lib/strfry
+    # Ensure directories exist and have proper ownership
+    mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
-    chown strfry:strfry /var/lib/strfry /var/log/strfry
+    chown -R strfry:strfry /var/lib/strfry /var/log/strfry
 fi
 
 # Clone and compile strfry
@@ -340,7 +384,7 @@ performance {
 }
 EOF
 
-# Create strfry database directory
+# Create strfry database directory with proper ownership
 mkdir -p /var/lib/strfry/db
 chown -R strfry:strfry /var/lib/strfry
 
@@ -593,7 +637,20 @@ if ! curl -s localhost:7778 > /dev/null; then
     echo "WARNING: strfry monitoring endpoint not responding"
 fi
 
+# Check database disk space
+DB_USAGE=$(df /var/lib/strfry | tail -1 | awk '{print $5}' | sed 's/%//')
+if [ "$DB_USAGE" -gt 85 ]; then
+    echo "WARNING: Database disk usage is ${DB_USAGE}% (threshold: 85%)"
+    echo "Consider expanding the data disk in Azure Portal"
+fi
+
+# Check if database is on mounted disk
+if ! mount | grep -q "/var/lib/strfry"; then
+    echo "WARNING: Database directory not on mounted data disk"
+fi
+
 echo "OK: Discovery relay services are healthy"
+echo "Database disk usage: ${DB_USAGE}%"
 exit 0
 EOF
 

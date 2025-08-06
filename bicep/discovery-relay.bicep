@@ -83,5 +83,7 @@ module discoveryRelayServer 'modules/discovery-virtual-machine.bicep' = {
 output discoveryRelayName string = discoveryRelayServer.outputs.vmName
 output discoveryRelayPublicIp string = discoveryRelayServer.outputs.publicIpAddress
 output discoveryRelayFqdn string = discoveryRelayServer.outputs.fqdn
+output dataDiskId string = discoveryRelayServer.outputs.dataDiskId
+output dataDiskName string = discoveryRelayServer.outputs.dataDiskName
 output vnetId string = virtualNetwork.outputs.vnetId
 output nsgId string = networkSecurityGroup.outputs.nsgId

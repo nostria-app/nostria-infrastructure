@@ -31,6 +31,79 @@ EOF
 
     apt-get update || true
     apt-get upgrade -y
+
+    # Setup data disk for strfry database
+    echo "Setting up data disk for strfry database..."
+    
+    # List all available disks for debugging
+    echo "Available disks:"
+    lsblk -dn -o NAME,SIZE,TYPE,MOUNTPOINT
+    
+    # Find the data disk (should be the first unpartitioned disk that's not the OS disk)
+    # Look for a disk that doesn't have any partitions and isn't the root disk
+    ROOT_DISK=$(df / | tail -1 | awk '{print $1}' | sed 's/[0-9]*$//' | sed 's|/dev/||')
+    echo "Root disk identified as: $ROOT_DISK"
+    
+    # Find data disk by looking for unpartitioned disks
+    DATA_DISK=$(lsblk -dn -o NAME,TYPE | grep "disk" | grep -v "$ROOT_DISK" | head -n1 | awk '{print $1}')
+    
+    if [ -n "$DATA_DISK" ]; then
+        echo "Found data disk: /dev/$DATA_DISK"
+        
+        # Check if the disk already has partitions
+        if [ $(lsblk -n /dev/$DATA_DISK | wc -l) -gt 1 ]; then
+            echo "Data disk already has partitions, checking if mounted..."
+            PARTITION="${DATA_DISK}1"
+            if mount | grep -q "/dev/$PARTITION"; then
+                echo "Data disk partition already mounted"
+            else
+                echo "Mounting existing data disk partition..."
+                mount /dev/$PARTITION /var/lib/strfry || {
+                    echo "Failed to mount existing partition, will reformat..."
+                    umount /var/lib/strfry 2>/dev/null || true
+                    # Format and mount
+                    mkfs.ext4 -F /dev/$PARTITION
+                    mount /dev/$PARTITION /var/lib/strfry
+                }
+            fi
+        else
+            echo "Creating new partition on data disk..."
+            # Create partition table and partition
+            parted /dev/$DATA_DISK --script mklabel gpt
+            parted /dev/$DATA_DISK --script mkpart primary ext4 0% 100%
+            
+            # Wait a moment for partition to be recognized
+            sleep 2
+            
+            # Format the partition with ext4
+            mkfs.ext4 -F /dev/${DATA_DISK}1
+            
+            # Create mount point
+            mkdir -p /var/lib/strfry
+            
+            # Mount the disk
+            mount /dev/${DATA_DISK}1 /var/lib/strfry
+        fi
+        
+        # Get UUID for permanent mounting
+        DATA_UUID=$(blkid -s UUID -o value /dev/${DATA_DISK}1)
+        echo "Data disk UUID: $DATA_UUID"
+        
+        # Add to fstab for permanent mounting (remove any existing entry first)
+        sed -i '\|/var/lib/strfry|d' /etc/fstab
+        echo "UUID=$DATA_UUID /var/lib/strfry ext4 defaults,noatime 0 2" >> /etc/fstab
+        
+        # Set proper ownership and permissions on the mounted data disk
+        echo "Setting ownership and permissions on data disk..."
+        chown -R strfry:strfry /var/lib/strfry
+        chmod -R 755 /var/lib/strfry
+        
+        echo "Data disk mounted successfully at /var/lib/strfry"
+        df -h /var/lib/strfry
+    else
+        echo "No additional data disk found, using OS disk for database"
+        mkdir -p /var/lib/strfry
+    fi
 else
     echo "Skipping package sources configuration (rerun detected)"
     apt-get update || true
@@ -112,19 +185,29 @@ if [ "$RERUN" = "false" ]; then
     echo "Creating strfry user..."
     useradd -r -s /bin/false -d /var/lib/strfry strfry
 
-    # Create directories
+    # Create directories (after data disk is mounted)
     echo "Creating directories..."
-    mkdir -p /var/lib/strfry
+    mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
-    chown strfry:strfry /var/lib/strfry /var/log/strfry
+    chown -R strfry:strfry /var/lib/strfry /var/log/strfry
 else
     echo "Skipping strfry user creation (rerun detected)"
-    # Ensure directories exist
-    mkdir -p /var/lib/strfry
+    # Ensure directories exist and have proper ownership
+    mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
-    chown strfry:strfry /var/lib/strfry /var/log/strfry
+    
+    # Set proper ownership recursively on the entire strfry directory tree
+    # This is critical for mounted data disks
+    echo "Setting proper ownership on strfry directories..."
+    chown -R strfry:strfry /var/lib/strfry /var/log/strfry
+    chmod -R 755 /var/lib/strfry
+    chmod -R 755 /var/log/strfry
+    
+    # Ensure database directory has correct permissions
+    chmod 755 /var/lib/strfry/db
+    chown strfry:strfry /var/lib/strfry/db
 fi
 
 # Clone and compile strfry
@@ -285,9 +368,16 @@ retention = [
 ]
 EOF
 
-# Create strfry database directory
+# Create strfry database directory with proper ownership
+echo "Ensuring proper ownership on strfry database directory..."
 mkdir -p /var/lib/strfry/db
 chown -R strfry:strfry /var/lib/strfry
+chmod -R 755 /var/lib/strfry
+
+# Verify ownership is correct
+echo "Verifying strfry directory ownership:"
+ls -la /var/lib/strfry/
+ls -la /var/lib/strfry/db/ 2>/dev/null || echo "Database directory will be created on first run"
 
 # Test strfry binary before creating service
 echo "Testing strfry binary..."
@@ -479,7 +569,7 @@ EOF
 echo "Creating health check script..."
 cat > /usr/local/bin/strfry-health-check.sh << 'EOF'
 #!/bin/bash
-# Simple health check for strfry relay
+# Health check for strfry relay
 
 # Check if strfry process is running
 if ! pgrep -f "strfry.*relay" > /dev/null; then
@@ -505,7 +595,31 @@ if ! ss -ln | grep -q ":443.*LISTEN"; then
     exit 1
 fi
 
-echo "OK: All services are healthy"
+# Check strfry monitoring endpoint (if available)
+if ! curl -s localhost:7778 > /dev/null; then
+    echo "WARNING: strfry monitoring endpoint not responding"
+fi
+
+# Check database disk space
+DB_USAGE=$(df /var/lib/strfry 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//' || echo "0")
+if [ "$DB_USAGE" -gt 85 ]; then
+    echo "WARNING: Database disk usage is ${DB_USAGE}% (threshold: 85%)"
+    echo "Consider expanding the data disk in Azure Portal"
+fi
+
+# Check if database is on mounted disk (more robust check)
+STRFRY_MOUNT=$(df /var/lib/strfry 2>/dev/null | tail -1 | awk '{print $1}')
+ROOT_MOUNT=$(df / 2>/dev/null | tail -1 | awk '{print $1}')
+
+if [ "$STRFRY_MOUNT" != "$ROOT_MOUNT" ]; then
+    echo "INFO: Database is on separate data disk: $STRFRY_MOUNT"
+else
+    echo "WARNING: Database directory appears to be on root filesystem"
+    echo "Expected: separate data disk, Actual: $STRFRY_MOUNT"
+fi
+
+echo "OK: Relay services are healthy"
+echo "Database disk usage: ${DB_USAGE}%"
 exit 0
 EOF
 

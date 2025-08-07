@@ -47,6 +47,12 @@ if ([string]::IsNullOrEmpty($ResourceGroupName)) {
 }
 
 Write-StatusMessage "Starting VM Relay deployment for region: $Region" -Type Info
+Write-StatusMessage "Features:" -Type Info
+Write-StatusMessage "  - VM Size: $VmSize" -Type Info
+Write-StatusMessage "  - VM Count: $VmRelayCount" -Type Info
+Write-StatusMessage "  - OS Disk: 30GB Premium SSD" -Type Info
+Write-StatusMessage "  - Data Disk: 32GB Standard SSD (for strfry database)" -Type Info
+Write-StatusMessage "  - Auto-configured with strfry + Caddy" -Type Info
 
 # Check if SSH public key exists
 if (-not (Test-Path $SshPublicKeyPath)) {

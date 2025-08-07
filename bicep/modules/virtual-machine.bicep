@@ -32,6 +32,7 @@ param forceUpdate string = 'v1'
 // Variables
 var nicName = '${vmName}-nic'
 var osDiskName = '${vmName}-os-disk'
+var dataDiskName = '${vmName}-data-disk'
 var publicIpName = '${vmName}-pip'
 
 // Public IP for the VM
@@ -47,6 +48,22 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2023-05-01' = {
     publicIPAllocationMethod: 'Static'
     dnsSettings: {
       domainNameLabel: vmName
+    }
+  }
+}
+
+// Data disk for strfry database (32GB for VM relays)
+resource dataDisk 'Microsoft.Compute/disks@2023-04-02' = {
+  name: dataDiskName
+  location: location
+  tags: tags
+  sku: {
+    name: 'StandardSSD_LRS'
+  }
+  properties: {
+    diskSizeGB: 32
+    creationData: {
+      createOption: 'Empty'
     }
   }
 }
@@ -120,6 +137,18 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
         }
         diskSizeGB: 30
       }
+      dataDisks: [
+        {
+          name: dataDiskName
+          lun: 0
+          createOption: 'Attach'
+          caching: 'ReadWrite'
+          managedDisk: {
+            id: dataDisk.id
+            storageAccountType: 'StandardSSD_LRS'
+          }
+        }
+      ]
     }
     networkProfile: {
       networkInterfaces: [

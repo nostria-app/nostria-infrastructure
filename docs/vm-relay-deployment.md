@@ -19,6 +19,15 @@ sudo ss -tulpn | grep 443
 # Run the health check
 /usr/local/bin/strfry-health-check.sh
 
+# Debug TLS Certificate Issues
+curl -I https://index.eu.nostria.app/health
+sudo journalctl -u caddy -f --no-pager
+sudo caddy validate --config /etc/caddy/Caddyfile
+
+# Check certificate status
+sudo /usr/local/bin/caddy list-certificates
+openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app
+
 ## Overview
 
 The VM relay deployment provides:
@@ -276,11 +285,101 @@ Configure your monitoring system to check:
 
 1. **Certificate not obtaining:**
    ```bash
-   # Check Caddy logs
+   # Check Caddy logs for certificate errors
    sudo journalctl -u caddy -f
+   sudo journalctl -u caddy --since "1 hour ago" | grep -i cert
    
-   # Verify DNS resolution
-   nslookup ribo.eu.nostria.app
+   # Verify DNS resolution from the VM
+   nslookup index.eu.nostria.app
+   dig index.eu.nostria.app
+   
+   # Test if the domain resolves to this VM's IP
+   VM_IP=$(curl -s ifconfig.me)
+   RESOLVED_IP=$(dig +short index.eu.nostria.app)
+   echo "VM IP: $VM_IP"
+   echo "DNS IP: $RESOLVED_IP"
+   
+   # Check if port 80 is accessible (required for ACME challenge)
+   sudo ufw status
+   sudo netstat -tlnp | grep :80
+   
+   # Test ACME challenge manually
+   curl -I http://index.eu.nostria.app/.well-known/acme-challenge/test
+   
+   # Check Caddy configuration syntax
+   sudo /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile
+   
+   # Force certificate renewal
+   sudo /usr/local/bin/caddy reload --config /etc/caddy/Caddyfile
+   
+   # Check certificate status in Caddy
+   curl -s http://localhost:2019/config/apps/tls/certificates | jq '.'
+   ```
+
+2. **DNS not pointing to VM (most common issue):**
+   ```bash
+   # Check what IP the domain resolves to
+   VM_PUBLIC_IP=$(curl -s ifconfig.me)
+   DOMAIN_IP=$(dig +short index.eu.nostria.app)
+   
+   echo "VM Public IP: $VM_PUBLIC_IP"
+   echo "Domain resolves to: $DOMAIN_IP"
+   
+   if [ "$VM_PUBLIC_IP" != "$DOMAIN_IP" ]; then
+       echo "❌ DNS mismatch! Update DNS records to point index.eu.nostria.app to $VM_PUBLIC_IP"
+   else
+       echo "✅ DNS correctly configured"
+   fi
+   ```
+
+3. **Certificate generation debugging:**
+   ```bash
+   # Enable debug logging for Caddy (temporarily)
+   sudo systemctl stop caddy
+   
+   # Run Caddy in debug mode to see certificate process
+   sudo /usr/local/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile --debug
+   
+   # In another terminal, test the domain
+   curl -I https://index.eu.nostria.app/health
+   
+   # Stop debug mode and restart service
+   # Ctrl+C to stop, then:
+   sudo systemctl start caddy
+   ```
+
+4. **ACME challenge troubleshooting:**
+   ```bash
+   # Check if Let's Encrypt can reach your server
+   # Test HTTP-01 challenge path
+   echo "test" | sudo tee /var/www/html/.well-known/acme-challenge/test
+   curl http://index.eu.nostria.app/.well-known/acme-challenge/test
+   
+   # Check firewall rules
+   sudo ufw status numbered
+   
+   # Ensure ports 80 and 443 are open
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   ```
+
+5. **Certificate authority issues:**
+   ```bash
+   # Check if using correct CA (Let's Encrypt)
+   openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app | openssl x509 -noout -issuer
+   
+   # Check certificate details
+   echo | openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app 2>/dev/null | openssl x509 -noout -dates -subject
+   ```
+
+6. **Fix certutil warning (optional):**
+   ```bash
+   # Install NSS tools to fix the certutil warning
+   sudo apt update
+   sudo apt install libnss3-tools
+   
+   # Restart Caddy to apply
+   sudo systemctl restart caddy
    ```
 
 2. **strfry not accepting connections:**

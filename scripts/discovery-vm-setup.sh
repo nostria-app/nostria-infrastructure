@@ -470,7 +470,13 @@ fi
 
 # Configure Caddy for discovery relay (always update the configuration)
 echo "Configuring/updating Caddy for discovery relay..."
-cat > /etc/caddy/Caddyfile << 'EOF'
+
+# Determine the region from hostname or use 'eu' as default
+REGION=$(hostname | grep -o '[a-z][a-z]' | head -n1 || echo "eu")
+DISCOVERY_DOMAIN="index.${REGION}.nostria.app"
+echo "Configuring Caddy for domain: $DISCOVERY_DOMAIN"
+
+cat > /etc/caddy/Caddyfile << EOF
 # Global options
 {
     # Enable admin API on localhost only
@@ -486,8 +492,8 @@ cat > /etc/caddy/Caddyfile << 'EOF'
     }
 }
 
-# Main site configuration for discovery.eu.nostria.app
-discovery.eu.nostria.app {
+# Main site configuration for $DISCOVERY_DOMAIN
+$DISCOVERY_DOMAIN {
     # Enable automatic HTTPS
     tls {
         protocols tls1.2 tls1.3
@@ -537,7 +543,7 @@ discovery.eu.nostria.app {
 }
 
 # Health check endpoint for monitoring
-discovery.eu.nostria.app/health {
+$DISCOVERY_DOMAIN/health {
     respond "OK" 200
 }
 
@@ -720,6 +726,6 @@ else
     journalctl -u caddy --no-pager -n 20 || true
 fi
 
-echo "Setup completed! The discovery relay should be accessible at https://discovery.eu.nostria.app"
-echo "You can check the relay info at: https://discovery.eu.nostria.app (WebSocket connection for nostr)"
+echo "Setup completed! The discovery relay should be accessible at https://$DISCOVERY_DOMAIN"
+echo "You can check the relay info at: https://$DISCOVERY_DOMAIN (WebSocket connection for nostr)"
 echo "Internal monitoring available at: http://localhost:8080/health"

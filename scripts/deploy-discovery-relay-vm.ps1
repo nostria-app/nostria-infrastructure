@@ -200,8 +200,8 @@ try {
         Write-StatusMessage "- Database can be expanded later via Azure Portal if needed" -Type Info
         Write-StatusMessage "" -Type Info
         Write-StatusMessage "Next steps:" -Type Info
-        Write-StatusMessage "1. Update DNS records to point discovery.$Region.nostria.app to the VM public IP" -Type Info
-        Write-StatusMessage "2. The discovery relay should be accessible at https://discovery.$Region.nostria.app once DNS propagates" -Type Info
+        Write-StatusMessage "1. Update DNS records to point index.$Region.nostria.app to the VM public IP" -Type Info
+        Write-StatusMessage "2. The discovery relay should be accessible at https://index.$Region.nostria.app once DNS propagates" -Type Info
         Write-StatusMessage "3. You can SSH to the VM using: ssh azureuser@<VM-Public-IP>" -Type Info
         Write-StatusMessage "4. Check relay status: /usr/local/bin/strfry-health-check.sh" -Type Info
         Write-StatusMessage "5. Monitor logs: sudo journalctl -u strfry -f" -Type Info

@@ -1,7 +1,26 @@
 #!/bin/bash
 set -e
 
-#     # Configure package sources
+# Get force update parameter if provided
+FORCE_UPDATE=${1:-"initial"}
+
+# Log all output to a file for debugging
+exec > >(tee -a /var/log/discovery-vm-setup.log) 2>&1
+echo "Starting Discovery Relay VM setup at $(date) with force update: $FORCE_UPDATE"
+
+# Check if this is a re-run (services already exist)
+RERUN=false
+if systemctl list-units --full -all | grep -Fq "strfry.service"; then
+    echo "Detected existing strfry service - this appears to be a configuration update (force update: $FORCE_UPDATE)"
+    RERUN=true
+fi
+
+# Update system
+echo "Updating system packages..."
+export DEBIAN_FRONTEND=noninteractive
+
+if [ "$RERUN" = "false" ]; then
+    # Configure package sources
     echo "Configuring package sources..."
     cat > /etc/apt/sources.list << 'EOF'
 deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
@@ -45,25 +64,7 @@ EOF
     else
         echo "No additional data disk found, using OS disk for database"
         mkdir -p /var/lib/strfry
-    fipdate parameter if provided
-FORCE_UPDATE=${1:-"initial"}
-
-# Log all output to a file for debugging
-exec > >(tee -a /var/log/discovery-vm-setup.log) 2>&1
-echo "Starting Discovery Relay VM setup at $(date) with force update: $FORCE_UPDATE"
-
-# Check if this is a re-run (services already exist)
-RERUN=false
-if systemctl list-units --full -all | grep -Fq "strfry.service"; then
-    echo "Detected existing strfry service - this appears to be a configuration update (force update: $FORCE_UPDATE)"
-    RERUN=true
-fi
-
-# Update system
-echo "Updating system packages..."
-export DEBIAN_FRONTEND=noninteractive
-
-if [ "$RERUN" = "false" ]; then
+    fi
     # Configure proper package sources
     echo "Configuring package sources..."
     cat > /etc/apt/sources.list << 'EOF'

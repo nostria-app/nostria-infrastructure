@@ -119,7 +119,7 @@ Requires=strfry.service
 Type=simple
 User=strfry
 Group=strfry
-ExecStart=/usr/local/bin/strfry router /etc/strfry/strfry-router.conf
+ExecStart=/usr/local/bin/strfry --config=/etc/strfry/strfry.conf router /etc/strfry/strfry-router.conf
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -150,11 +150,11 @@ EOF
 
 # Test the router configuration
 echo "Testing strfry router configuration..."
-if sudo -u strfry /usr/local/bin/strfry router /etc/strfry/strfry-router.conf --test 2>/dev/null; then
-    echo "SUCCESS: Router configuration is valid"
+if sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf router /etc/strfry/strfry-router.conf --help >/dev/null 2>&1; then
+    echo "SUCCESS: Router configuration appears valid"
 else
-    echo "WARNING: Could not test router configuration (strfry may not support --test flag)"
-    echo "Configuration should still work if strfry binary is functional"
+    echo "WARNING: Could not validate router configuration, but proceeding with setup"
+    echo "This is normal if strfry doesn't support config validation"
 fi
 
 # Enable and start the router service

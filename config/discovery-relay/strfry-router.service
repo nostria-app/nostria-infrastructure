@@ -8,7 +8,7 @@ Requires=strfry.service
 Type=simple
 User=strfry
 Group=strfry
-ExecStart=/usr/local/bin/strfry router /etc/strfry/strfry-router.conf
+ExecStart=/usr/local/bin/strfry --config=/etc/strfry/strfry.conf router /etc/strfry/strfry-router.conf
 Restart=always
 RestartSec=10
 StandardOutput=journal

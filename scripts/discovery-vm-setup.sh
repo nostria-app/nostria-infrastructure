@@ -35,47 +35,70 @@ EOF
     # Setup data disk for strfry database
     echo "Setting up data disk for strfry database..."
     
+    # List all available disks for debugging
+    echo "Available disks:"
+    lsblk -dn -o NAME,SIZE,TYPE,MOUNTPOINT
+    
     # Find the data disk (should be the first unpartitioned disk that's not the OS disk)
-    DATA_DISK=$(lsblk -dn -o NAME,SIZE | grep -v "$(lsblk -dn -o NAME | head -n1)" | head -n1 | awk '{print $1}')
+    # Look for a disk that doesn't have any partitions and isn't the root disk
+    ROOT_DISK=$(df / | tail -1 | awk '{print $1}' | sed 's/[0-9]*$//' | sed 's|/dev/||')
+    echo "Root disk identified as: $ROOT_DISK"
+    
+    # Find data disk by looking for unpartitioned disks
+    DATA_DISK=$(lsblk -dn -o NAME,TYPE | grep "disk" | grep -v "$ROOT_DISK" | head -n1 | awk '{print $1}')
     
     if [ -n "$DATA_DISK" ]; then
         echo "Found data disk: /dev/$DATA_DISK"
         
-        # Create partition table and partition
-        parted /dev/$DATA_DISK --script mklabel gpt
-        parted /dev/$DATA_DISK --script mkpart primary ext4 0% 100%
-        
-        # Format the partition with ext4
-        mkfs.ext4 -F /dev/${DATA_DISK}1
-        
-        # Create mount point
-        mkdir -p /var/lib/strfry
+        # Check if the disk already has partitions
+        if [ $(lsblk -n /dev/$DATA_DISK | wc -l) -gt 1 ]; then
+            echo "Data disk already has partitions, checking if mounted..."
+            PARTITION="${DATA_DISK}1"
+            if mount | grep -q "/dev/$PARTITION"; then
+                echo "Data disk partition already mounted"
+            else
+                echo "Mounting existing data disk partition..."
+                mount /dev/$PARTITION /var/lib/strfry || {
+                    echo "Failed to mount existing partition, will reformat..."
+                    umount /var/lib/strfry 2>/dev/null || true
+                    # Format and mount
+                    mkfs.ext4 -F /dev/$PARTITION
+                    mount /dev/$PARTITION /var/lib/strfry
+                }
+            fi
+        else
+            echo "Creating new partition on data disk..."
+            # Create partition table and partition
+            parted /dev/$DATA_DISK --script mklabel gpt
+            parted /dev/$DATA_DISK --script mkpart primary ext4 0% 100%
+            
+            # Wait a moment for partition to be recognized
+            sleep 2
+            
+            # Format the partition with ext4
+            mkfs.ext4 -F /dev/${DATA_DISK}1
+            
+            # Create mount point
+            mkdir -p /var/lib/strfry
+            
+            # Mount the disk
+            mount /dev/${DATA_DISK}1 /var/lib/strfry
+        fi
         
         # Get UUID for permanent mounting
         DATA_UUID=$(blkid -s UUID -o value /dev/${DATA_DISK}1)
+        echo "Data disk UUID: $DATA_UUID"
         
-        # Add to fstab for permanent mounting
+        # Add to fstab for permanent mounting (remove any existing entry first)
+        sed -i '\|/var/lib/strfry|d' /etc/fstab
         echo "UUID=$DATA_UUID /var/lib/strfry ext4 defaults,noatime 0 2" >> /etc/fstab
         
-        # Mount the disk
-        mount /var/lib/strfry
-        
         echo "Data disk mounted successfully at /var/lib/strfry"
+        df -h /var/lib/strfry
     else
         echo "No additional data disk found, using OS disk for database"
         mkdir -p /var/lib/strfry
     fi
-    # Configure proper package sources
-    echo "Configuring package sources..."
-    cat > /etc/apt/sources.list << 'EOF'
-deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
-deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
-deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
-EOF
-
-    apt-get update || true
-    apt-get upgrade -y
 else
     echo "Skipping package sources configuration (rerun detected)"
     apt-get update || true
@@ -639,15 +662,21 @@ if ! curl -s localhost:7778 > /dev/null; then
 fi
 
 # Check database disk space
-DB_USAGE=$(df /var/lib/strfry | tail -1 | awk '{print $5}' | sed 's/%//')
+DB_USAGE=$(df /var/lib/strfry 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//' || echo "0")
 if [ "$DB_USAGE" -gt 85 ]; then
     echo "WARNING: Database disk usage is ${DB_USAGE}% (threshold: 85%)"
     echo "Consider expanding the data disk in Azure Portal"
 fi
 
-# Check if database is on mounted disk
-if ! mount | grep -q "/var/lib/strfry"; then
-    echo "WARNING: Database directory not on mounted data disk"
+# Check if database is on mounted disk (more robust check)
+STRFRY_MOUNT=$(df /var/lib/strfry 2>/dev/null | tail -1 | awk '{print $1}')
+ROOT_MOUNT=$(df / 2>/dev/null | tail -1 | awk '{print $1}')
+
+if [ "$STRFRY_MOUNT" != "$ROOT_MOUNT" ]; then
+    echo "INFO: Database is on separate data disk: $STRFRY_MOUNT"
+else
+    echo "WARNING: Database directory appears to be on root filesystem"
+    echo "Expected: separate data disk, Actual: $STRFRY_MOUNT"
 fi
 
 echo "OK: Discovery relay services are healthy"

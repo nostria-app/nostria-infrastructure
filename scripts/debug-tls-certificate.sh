@@ -8,9 +8,24 @@ echo "Date: $(date)"
 echo ""
 
 # Determine the expected domain
-REGION=$(hostname | grep -o '[a-z][a-z]' | head -n1 || echo "eu")
+# Try to get region from VM name pattern (nostria-{region}-discovery-vm)
+REGION=$(hostname | sed -n 's/.*nostria-\([a-z][a-z]\)-discovery.*/\1/p')
+
+# If that fails, try to get from resource group or other sources
+if [ -z "$REGION" ]; then
+    # Try from Azure metadata (if available)
+    REGION=$(curl -s -H "Metadata:true" "http://169.254.169.254/metadata/instance/compute/resourceGroupName?api-version=2021-02-01" 2>/dev/null | sed -n 's/.*nostria-\([a-z][a-z]\)-.*/\1/p' || echo "")
+fi
+
+# Default to 'eu' if still can't determine
+if [ -z "$REGION" ]; then
+    REGION="eu"
+    echo "⚠️  Could not determine region from hostname '$(hostname)', defaulting to 'eu'"
+fi
+
 EXPECTED_DOMAIN="index.${REGION}.nostria.app"
 echo "🎯 Expected Domain: $EXPECTED_DOMAIN"
+echo "🖥️  Hostname: $(hostname)"
 echo ""
 
 # 1. Check VM public IP

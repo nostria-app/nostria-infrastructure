@@ -93,6 +93,11 @@ EOF
         sed -i '\|/var/lib/strfry|d' /etc/fstab
         echo "UUID=$DATA_UUID /var/lib/strfry ext4 defaults,noatime 0 2" >> /etc/fstab
         
+        # Set proper ownership and permissions on the mounted data disk
+        echo "Setting ownership and permissions on data disk..."
+        chown -R strfry:strfry /var/lib/strfry
+        chmod -R 755 /var/lib/strfry
+        
         echo "Data disk mounted successfully at /var/lib/strfry"
         df -h /var/lib/strfry
     else
@@ -192,7 +197,17 @@ else
     mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
+    
+    # Set proper ownership recursively on the entire strfry directory tree
+    # This is critical for mounted data disks
+    echo "Setting proper ownership on strfry directories..."
     chown -R strfry:strfry /var/lib/strfry /var/log/strfry
+    chmod -R 755 /var/lib/strfry
+    chmod -R 755 /var/log/strfry
+    
+    # Ensure database directory has correct permissions
+    chmod 755 /var/lib/strfry/db
+    chown strfry:strfry /var/lib/strfry/db
 fi
 
 # Clone and compile strfry
@@ -409,8 +424,15 @@ performance {
 EOF
 
 # Create strfry database directory with proper ownership
+echo "Ensuring proper ownership on strfry database directory..."
 mkdir -p /var/lib/strfry/db
 chown -R strfry:strfry /var/lib/strfry
+chmod -R 755 /var/lib/strfry
+
+# Verify ownership is correct
+echo "Verifying strfry directory ownership:"
+ls -la /var/lib/strfry/
+ls -la /var/lib/strfry/db/ 2>/dev/null || echo "Database directory will be created on first run"
 
 # Test strfry binary before creating service
 echo "Testing strfry binary..."

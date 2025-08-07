@@ -765,3 +765,13 @@ fi
 echo "Setup completed! The discovery relay should be accessible at https://$DISCOVERY_DOMAIN"
 echo "You can check the relay info at: https://$DISCOVERY_DOMAIN (WebSocket connection for nostr)"
 echo "Internal monitoring available at: http://localhost:8080/health"
+
+# Optional: Setup strfry router for syncing with other relays
+echo ""
+echo "=== Optional: Strfry Router Setup ==="
+echo "To enable syncing event kinds 3 and 10002 with other relays, run:"
+echo "  sudo /var/log/discovery-vm-setup.log && curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/setup-strfry-router.sh | sudo bash"
+echo ""
+echo "This will configure:"
+echo "  - Two-way sync with purplepag.es (kinds 3, 10002)"
+echo "  - One-way sync from relay.damus.io and relay.primal.net (kinds 3, 10002)"

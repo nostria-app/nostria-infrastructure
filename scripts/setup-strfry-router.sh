@@ -1,0 +1,264 @@
+#!/bin/bash
+# Setup script for strfry router sync configuration
+# This configures two-way sync with purplepag.es and one-way sync from damus.io and primal.net
+# Only syncs event kinds 3 (contact lists) and 10002 (relay lists)
+
+set -e
+
+echo "=== Strfry Router Setup for Discovery Relay ==="
+echo "Timestamp: $(date)"
+
+# Check if strfry is installed
+if ! command -v strfry &> /dev/null; then
+    echo "ERROR: strfry binary not found. Please install strfry first."
+    exit 1
+fi
+
+# Check if strfry user exists
+if ! id strfry &>/dev/null; then
+    echo "ERROR: strfry user does not exist. Please run the main discovery VM setup first."
+    exit 1
+fi
+
+# Create router config directory
+echo "Creating router configuration directory..."
+mkdir -p /etc/strfry
+
+# Create the router configuration file
+echo "Creating strfry router configuration..."
+cat > /etc/strfry/strfry-router.conf << 'EOF'
+# strfry router configuration for syncing event kinds 3 and 10002
+# This configuration handles:
+# - Two-way sync with purplepag.es
+# - One-way sync (down only) from relay.damus.io and relay.primal.net
+
+# Connection timeout in seconds
+connectionTimeout = 20
+
+# Logging configuration
+logLevel = "info"
+
+# Stream configurations
+streams {
+    # Two-way sync with purplepag.es
+    # Sync contact lists (kind 3) and relay lists (kind 10002) bidirectionally
+    purplepages {
+        dir = "both"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://purplepag.es/"
+        ]
+        
+        # Optional: Add plugin for additional filtering if needed
+        # pluginDown = "/etc/strfry/plugins/validate-events.js"
+        # pluginUp = "/etc/strfry/plugins/validate-events.js"
+    }
+    
+    # One-way sync (down only) from Damus relay
+    # Only download event kinds 3 and 10002, don't push local events
+    damus {
+        dir = "down"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://relay.damus.io/"
+        ]
+        
+        # Optional: Add plugin for validation/filtering
+        # pluginDown = "/etc/strfry/plugins/validate-events.js"
+    }
+    
+    # One-way sync (down only) from Primal relay
+    # Only download event kinds 3 and 10002, don't push local events
+    primal {
+        dir = "down"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://relay.primal.net/"
+        ]
+        
+        # Optional: Add plugin for validation/filtering
+        # pluginDown = "/etc/strfry/plugins/validate-events.js"
+    }
+}
+
+# Optional: Performance tuning
+# maxConcurrentConnections = 10
+# reconnectDelaySeconds = 5
+# maxEventsPerSecond = 100
+EOF
+
+# Set proper ownership
+chown root:root /etc/strfry/strfry-router.conf
+chmod 644 /etc/strfry/strfry-router.conf
+
+# Create the systemd service file
+echo "Creating strfry router systemd service..."
+cat > /etc/systemd/system/strfry-router.service << 'EOF'
+[Unit]
+Description=strfry nostr router for discovery relay sync
+After=network.target strfry.service
+Wants=network.target
+Requires=strfry.service
+
+[Service]
+Type=simple
+User=strfry
+Group=strfry
+ExecStart=/usr/local/bin/strfry router /etc/strfry/strfry-router.conf
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=strfry-router
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/strfry /var/log/strfry
+ReadOnlyPaths=/etc/strfry
+
+# Environment variables
+Environment=STRFRY_DB=/var/lib/strfry/db
+
+# File descriptor limits
+LimitNOFILE=524288
+
+# Restart policy - be more patient with network issues
+RestartPreventExitStatus=0
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Test the router configuration
+echo "Testing strfry router configuration..."
+if sudo -u strfry /usr/local/bin/strfry router /etc/strfry/strfry-router.conf --test 2>/dev/null; then
+    echo "SUCCESS: Router configuration is valid"
+else
+    echo "WARNING: Could not test router configuration (strfry may not support --test flag)"
+    echo "Configuration should still work if strfry binary is functional"
+fi
+
+# Enable and start the router service
+echo "Enabling and starting strfry router service..."
+systemctl daemon-reload
+systemctl enable strfry-router
+
+# Make sure main strfry service is running first
+if ! systemctl is-active --quiet strfry; then
+    echo "Starting main strfry service first..."
+    systemctl start strfry
+    sleep 5
+fi
+
+# Start the router service
+echo "Starting strfry router service..."
+systemctl start strfry-router
+
+# Wait a moment for startup
+sleep 10
+
+# Check service status
+echo "Checking service status..."
+if systemctl is-active --quiet strfry-router; then
+    echo "SUCCESS: strfry router service is running"
+    
+    # Show recent logs
+    echo "Recent logs from strfry router:"
+    journalctl -u strfry-router --no-pager -n 20 || true
+else
+    echo "ERROR: strfry router service failed to start"
+    echo "Service status:"
+    systemctl status strfry-router --no-pager -l || true
+    echo "Recent logs:"
+    journalctl -u strfry-router --no-pager -n 20 || true
+    exit 1
+fi
+
+# Create monitoring script for router sync
+echo "Creating router monitoring script..."
+cat > /usr/local/bin/strfry-router-monitor.sh << 'EOF'
+#!/bin/bash
+# Monitor strfry router sync status
+
+echo "=== Strfry Router Sync Monitor ==="
+echo "Timestamp: $(date)"
+
+# Check if router service is running
+if systemctl is-active --quiet strfry-router; then
+    echo "✓ Router service is running"
+else
+    echo "✗ Router service is not running"
+    systemctl status strfry-router --no-pager -l || true
+    exit 1
+fi
+
+# Check database for event kinds 3 and 10002
+echo -e "\n=== Event Counts in Database ==="
+echo "Contact lists (kind 3):"
+strfry scan '{"kinds":[3]}' 2>/dev/null | wc -l || echo "Error scanning kind 3 events"
+
+echo "Relay lists (kind 10002):"
+strfry scan '{"kinds":[10002]}' 2>/dev/null | wc -l || echo "Error scanning kind 10002 events"
+
+# Show recent router logs
+echo -e "\n=== Recent Router Logs ==="
+journalctl -u strfry-router --no-pager -n 10 --since "5 minutes ago" || true
+
+# Show network connections
+echo -e "\n=== Active Network Connections ==="
+ss -tuln | grep -E "(7777|443)" || echo "No relay connections visible"
+
+echo -e "\n=== Router Monitor Complete ==="
+EOF
+
+chmod +x /usr/local/bin/strfry-router-monitor.sh
+
+# Add cron job for monitoring
+echo "Setting up router monitoring..."
+cat > /etc/cron.d/strfry-router-monitor << 'EOF'
+# Monitor strfry router sync every 30 minutes
+*/30 * * * * root /usr/local/bin/strfry-router-monitor.sh >> /var/log/strfry-router-monitor.log 2>&1
+EOF
+
+echo -e "\n=== Strfry Router Setup Complete ==="
+echo "Configuration:"
+echo "  - Two-way sync with: wss://purplepag.es/"
+echo "  - One-way sync from: wss://relay.damus.io/"
+echo "  - One-way sync from: wss://relay.primal.net/"
+echo "  - Event kinds: 3 (contact lists), 10002 (relay lists)"
+echo ""
+echo "Services:"
+echo "  - strfry.service: Main relay"
+echo "  - strfry-router.service: Sync router"
+echo ""
+echo "Monitoring:"
+echo "  - Run: /usr/local/bin/strfry-router-monitor.sh"
+echo "  - Logs: journalctl -u strfry-router -f"
+echo "  - Status: systemctl status strfry-router"
+echo ""
+echo "Configuration files:"
+echo "  - Router config: /etc/strfry/strfry-router.conf"
+echo "  - Service file: /etc/systemd/system/strfry-router.service"
+
+# Run initial monitor
+echo -e "\n=== Initial Router Status ==="
+/usr/local/bin/strfry-router-monitor.sh

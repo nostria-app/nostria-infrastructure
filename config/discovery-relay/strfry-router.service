@@ -1,0 +1,37 @@
+[Unit]
+Description=strfry nostr router for discovery relay sync
+After=network.target strfry.service
+Wants=network.target
+Requires=strfry.service
+
+[Service]
+Type=simple
+User=strfry
+Group=strfry
+ExecStart=/usr/local/bin/strfry router /etc/strfry/strfry-router.conf
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=strfry-router
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/strfry /var/log/strfry
+ReadOnlyPaths=/etc/strfry
+
+# Environment variables
+Environment=STRFRY_DB=/var/lib/strfry/db
+
+# File descriptor limits
+LimitNOFILE=524288
+
+# Restart policy - be more patient with network issues
+RestartPreventExitStatus=0
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

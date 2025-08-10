@@ -28,15 +28,6 @@ module keyVault 'modules/key-vault.bicep' = {
   }
 }
 
-// Deploy storage account for status app data
-module statusStorage 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-status-storage-deployment'
-  params: {
-    name: 'nostriastatusst'
-    location: location
-  }
-}
-
 module mainStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-main-storage-deployment'
   params: {
@@ -317,7 +308,6 @@ module statusApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-status:latest'
     customDomainName: 'status.nostria.app'
-    storageAccountName: statusStorage.outputs.name
     appSettings: [
       {
         name: 'DB_PATH'
@@ -332,18 +322,6 @@ module statusApp 'modules/container-app.bicep' = {
         value: '600000'
       }
     ]
-  }
-}
-
-// Assign Storage File Data SMB Share Contributor role to discovery app
-module statusAppStorageRoleAssignment 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-status-storage-role-assignment'
-  params: {
-    storageAccountName: statusStorage.outputs.name
-    principalId: statusApp.outputs.webAppPrincipalId
-    // Default role will be used (Storage File Data SMB Share Contributor)
-    // If Status app needs Blob Storage access, change to:
-    // roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
   }
 }
 

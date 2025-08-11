@@ -218,6 +218,11 @@ if [ "$RERUN" = "false" ]; then
     if ! apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev; then
         error_exit "Failed to install development libraries" $LINENO "$BASH_COMMAND" 8
     fi
+    
+    echo "Installing additional tools for Caddy..."
+    if ! apt-get install -y libnss3-tools; then
+        echo "WARNING: Failed to install libnss3-tools (certificate management will have warnings)"
+    fi
 
     # Verify essential tools are available
     if ! command -v make &> /dev/null; then
@@ -356,17 +361,14 @@ if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/caddy" ]; then
     # Create necessary directories
     mkdir -p /etc/caddy
     mkdir -p /var/log/caddy
+    mkdir -p /var/lib/caddy/certificates
     chown -R caddy:caddy /var/lib/caddy
     chown -R caddy:caddy /var/log/caddy
+    
+    # Ensure proper permissions for certificate storage
+    chmod 700 /var/lib/caddy/certificates
 
-    # Create systemd service for Caddy (handle both installation paths)
-    CADDY_BINARY_PATH="/usr/local/bin/caddy"
-    if [ "${CADDY_INSTALLED_VIA_APT:-false}" = "true" ] || [ -f "/usr/bin/caddy" ]; then
-        CADDY_BINARY_PATH="/usr/bin/caddy"
-    fi
-    
-    echo "Using Caddy binary at: $CADDY_BINARY_PATH"
-    
+    # Create systemd service for Caddy
     cat > /etc/systemd/system/caddy.service << EOF
 [Unit]
 Description=Caddy
@@ -393,6 +395,14 @@ EOF
 else
     echo "Skipping Caddy installation (already exists or rerun detected)"
 fi
+
+# Determine Caddy binary path (for both installation methods)
+CADDY_BINARY_PATH="/usr/local/bin/caddy"
+if [ "${CADDY_INSTALLED_VIA_APT:-false}" = "true" ] || [ -f "/usr/bin/caddy" ]; then
+    CADDY_BINARY_PATH="/usr/bin/caddy"
+fi
+
+echo "Using Caddy binary at: $CADDY_BINARY_PATH"
 
 # Create strfry user
 if [ "$RERUN" = "false" ]; then
@@ -734,90 +744,121 @@ echo "Configuring Caddy for domain: $DISCOVERY_DOMAIN (region: $REGION, hostname
 cat > /etc/caddy/Caddyfile << EOF
 # Global options
 {
-    # Enable admin API on localhost only
-    admin localhost:2019
-    
-    # Disable automatic HTTPS for internal testing
-    # auto_https off
-    
-    # Log settings
-    log {
-        output file /var/log/caddy/caddy.log
-        level INFO
-    }
+	# Enable admin API on localhost only
+	admin localhost:2019
+	
+	# Disable automatic HTTPS for internal testing
+	# auto_https off
+	
+	# Set storage location for certificates (writable by caddy user)
+	storage file_system {
+		root /var/lib/caddy/certificates
+	}
+	
+	# Log settings
+	log {
+		output file /var/log/caddy/caddy.log
+		level INFO
+	}
 }
 
 # Main site configuration for $DISCOVERY_DOMAIN
 $DISCOVERY_DOMAIN {
-    # Enable automatic HTTPS
-    tls {
-        protocols tls1.2 tls1.3
-    }
-    
-    # Security headers
-    header {
-        # Enable HSTS
-        Strict-Transport-Security max-age=31536000;
-        
-        # Prevent clickjacking
-        X-Frame-Options DENY
-        
-        # Prevent MIME sniffing
-        X-Content-Type-Options nosniff
-        
-        # XSS protection
-        X-XSS-Protection "1; mode=block"
-        
-        # Referrer policy
-        Referrer-Policy strict-origin-when-cross-origin
-        
-        # Remove server information
-        -Server
-    }
-    
-    # WebSocket proxy for strfry nostr relay
-    reverse_proxy localhost:7777 {
-        # WebSocket support
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-Host {host}
-    }
-    
-    # Access logging
-    log {
-        output file /var/log/caddy/discovery-access.log
-        format json
-    }
-    
-    # Error handling
-    handle_errors {
-        respond "Service temporarily unavailable" 503
-    }
-}
-
-# Health check endpoint for monitoring
-$DISCOVERY_DOMAIN/health {
-    respond "OK" 200
+	# Enable automatic HTTPS
+	tls {
+		protocols tls1.2 tls1.3
+	}
+	
+	# Security headers
+	header {
+		# Enable HSTS
+		Strict-Transport-Security max-age=31536000;
+		
+		# Prevent clickjacking
+		X-Frame-Options DENY
+		
+		# Prevent MIME sniffing
+		X-Content-Type-Options nosniff
+		
+		# XSS protection
+		X-XSS-Protection "1; mode=block"
+		
+		# Referrer policy
+		Referrer-Policy strict-origin-when-cross-origin
+		
+		# Remove server information
+		-Server
+	}
+	
+	# Health check endpoint (moved inside main site)
+	handle /health {
+		respond "OK" 200
+	}
+	
+	# WebSocket proxy for strfry nostr relay (catch-all for other paths)
+	handle {
+		reverse_proxy localhost:7777 {
+			# WebSocket support
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+	
+	# Access logging
+	log {
+		output file /var/log/caddy/discovery-access.log
+		format json
+	}
+	
+	# Error handling
+	handle_errors {
+		respond "Service temporarily unavailable" 503
+	}
 }
 
 # Monitoring endpoint (internal access only via localhost)
 localhost:8080 {
-    # Strfry monitoring endpoint
-    reverse_proxy /metrics localhost:7778
-    
-    # Basic health check
-    handle /health {
-        respond "Discovery Relay OK" 200
-    }
-    
-    # System stats
-    handle /stats {
-        respond "Discovery relay statistics endpoint" 200
-    }
+	# Strfry monitoring endpoint
+	handle /metrics {
+		reverse_proxy localhost:7778
+	}
+	
+	# Basic health check
+	handle /health {
+		respond "Discovery Relay OK" 200
+	}
+	
+	# System stats
+	handle /stats {
+		respond "Discovery relay statistics endpoint" 200
+	}
+	
+	# Default response
+	handle {
+		respond "Internal monitoring interface" 200
+	}
 }
 EOF
+
+# Format the Caddyfile to fix formatting warnings
+echo "Formatting Caddyfile..."
+if command -v "$CADDY_BINARY_PATH" &> /dev/null; then
+    $CADDY_BINARY_PATH fmt --overwrite /etc/caddy/Caddyfile || echo "WARNING: Failed to format Caddyfile"
+fi
+
+# Validate the Caddyfile
+echo "Validating Caddyfile..."
+if command -v "$CADDY_BINARY_PATH" &> /dev/null; then
+    if ! $CADDY_BINARY_PATH validate --config /etc/caddy/Caddyfile; then
+        echo "ERROR: Caddyfile validation failed"
+        cat /etc/caddy/Caddyfile
+        exit 1
+    fi
+    echo "Caddyfile validation passed"
+fi
 
 # Always reload Caddy configuration after updating
 if systemctl is-active --quiet caddy; then

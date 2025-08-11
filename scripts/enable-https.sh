@@ -24,7 +24,7 @@ if [ -z "$REGION" ]; then
     echo "Warning: Could not determine region, defaulting to 'eu'"
 fi
 
-DISCOVERY_DOMAIN="index.${REGION}.nostria.app"
+DISCOVERY_DOMAIN="discovery.${REGION}.nostria.app"
 echo "Enabling HTTPS for domain: $DISCOVERY_DOMAIN"
 
 # Test DNS resolution first

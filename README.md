@@ -128,7 +128,10 @@ sudo journalctl -u caddy -f
 
 **Troubleshooting HTTPS issues**:
 ```sh
-# Check if DNS is properly configured
+# Check DNS propagation status
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash
+
+# Check if DNS is properly configured (alternative)
 nslookup discovery.[region].nostria.app
 
 # Debug endpoint issues

@@ -33,26 +33,70 @@ echo "Using domain: $DISCOVERY_DOMAIN"
 EXTERNAL_IP=$(curl -s --connect-timeout 10 ifconfig.me 2>/dev/null || echo "unknown")
 echo "VM External IP: $EXTERNAL_IP"
 
-# Test DNS
-echo "Testing DNS resolution..."
-RESOLVED_IP=$(dig +short $DISCOVERY_DOMAIN 2>/dev/null | tail -1)
-if [ -z "$RESOLVED_IP" ]; then
-    RESOLVED_IP=$(nslookup $DISCOVERY_DOMAIN 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}' || echo "failed")
-fi
-echo "DNS Resolved IP: $RESOLVED_IP"
+# Test DNS with multiple resolvers
+echo "Testing DNS resolution with multiple DNS servers..."
 
-if [ "$RESOLVED_IP" != "$EXTERNAL_IP" ] && [ "$RESOLVED_IP" != "failed" ]; then
-    echo "WARNING: DNS mismatch detected!"
-    echo "This may cause certificate acquisition to fail."
-    echo "Please verify DNS configuration."
+# Test with multiple DNS servers
+DNS_SERVERS=("8.8.8.8" "1.1.1.1" "208.67.222.222")
+DNS_RESULTS=""
+
+for dns_server in "${DNS_SERVERS[@]}"; do
+    echo "  Testing with DNS server $dns_server..."
+    RESOLVED_IP=$(dig @$dns_server +short $DISCOVERY_DOMAIN 2>/dev/null | tail -1)
+    if [ -n "$RESOLVED_IP" ]; then
+        echo "    Result: $RESOLVED_IP"
+        DNS_RESULTS="${DNS_RESULTS}${dns_server}:${RESOLVED_IP} "
+    else
+        echo "    Result: No response"
+    fi
+done
+
+# Also test local resolution
+LOCAL_RESOLVED=$(nslookup $DISCOVERY_DOMAIN 2>/dev/null | grep "Address:" | tail -1 | awk '{print $2}' || echo "failed")
+echo "  Local DNS result: $LOCAL_RESOLVED"
+
+echo ""
+echo "DNS Summary:"
+echo "  VM External IP: $EXTERNAL_IP"
+echo "  DNS Results: $DNS_RESULTS"
+echo "  Local Result: $LOCAL_RESOLVED"
+
+# Check if any DNS server returns the correct IP
+CORRECT_DNS_FOUND=false
+for dns_server in "${DNS_SERVERS[@]}"; do
+    RESOLVED_IP=$(dig @$dns_server +short $DISCOVERY_DOMAIN 2>/dev/null | tail -1)
+    if [ "$RESOLVED_IP" = "$EXTERNAL_IP" ]; then
+        CORRECT_DNS_FOUND=true
+        echo "✓ DNS is correctly configured (verified with $dns_server)"
+        break
+    fi
+done
+
+if [ "$CORRECT_DNS_FOUND" = "false" ]; then
+    echo "⚠ WARNING: DNS appears to not be pointing to this VM's IP yet"
     echo ""
-    echo "Continue anyway? (y/N):"
+    echo "This could be due to:"
+    echo "  1. DNS records not yet configured"
+    echo "  2. DNS propagation delay (can take 5-30 minutes)"
+    echo "  3. Local DNS caching on this server"
+    echo ""
+    echo "You can either:"
+    echo "  a) Wait for DNS propagation and try again later"
+    echo "  b) Continue anyway (HTTPS may fail but won't break anything)"
+    echo ""
+    echo "Continue with HTTPS setup anyway? (y/N):"
     read -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Aborting. Please fix DNS first."
+        echo "Aborting. Please wait for DNS propagation or fix DNS configuration."
+        echo ""
+        echo "To check DNS propagation status:"
+        echo "  https://dnschecker.org/#A/$DISCOVERY_DOMAIN"
         exit 1
     fi
+    echo "Continuing with HTTPS setup despite DNS issues..."
+else
+    echo "DNS verification passed!"
 fi
 
 # Create a simple, working HTTPS Caddyfile

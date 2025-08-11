@@ -54,6 +54,24 @@ Alternatively, if you have access to the setup script locally:
 sudo /path/to/setup-strfry-router.sh
 ```
 
+### Step 3: Run Initial Full Sync (Recommended)
+
+⚠️ **Important**: The router service only syncs NEW events going forward. To synchronize existing historical events from all configured relays, run the initial full sync script:
+
+```bash
+# Run initial full sync of existing events
+sudo curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/strfry-initial-full-sync.sh | sudo bash
+```
+
+This script will:
+- Stop the router service temporarily to avoid conflicts
+- Perform a one-time full sync with all configured relays
+- Download existing contact lists (kind 3) and relay lists (kind 10002)
+- Restart the router service for continuous sync
+- Provide detailed progress and error reporting
+
+**Note**: The initial sync may take several minutes depending on the amount of historical data available on the relays.
+
 ## Configuration Files
 
 ### Router Configuration (`/etc/strfry/strfry-router.conf`)
@@ -127,6 +145,34 @@ sudo -u strfry strfry sync wss://purplepag.es/ --filter '{"kinds":[3,10002]}'
 sudo -u strfry strfry sync wss://relay.damus.io/ --filter '{"kinds":[3,10002]}' --dir down
 sudo -u strfry strfry sync wss://relay.primal.net/ --filter '{"kinds":[3,10002]}' --dir down
 ```
+
+### Initial Full Sync
+
+For new discovery relays or when you need to synchronize existing historical events:
+
+```bash
+# Run comprehensive initial sync script
+sudo curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/strfry-initial-full-sync.sh | sudo bash
+```
+
+This script performs:
+- **Connectivity checks** for all configured relays
+- **Temporary router service stop** to avoid conflicts
+- **Full historical sync** with retry logic and timeout handling
+- **Event count reporting** before and after sync
+- **Automatic router service restart** when complete
+
+**Use cases:**
+- Fresh discovery relay deployment
+- Recovering from extended downtime
+- Migrating to a new discovery relay instance
+- Debugging missing historical events
+
+**What gets synchronized:**
+- Contact lists (kind 3) from all regions and external relays
+- Relay lists (kind 10002) from all regions and external relays
+- Both directions for purplepag.es and other discovery relays
+- Download-only from relay.damus.io and relay.primal.net
 
 ## Event Kinds Explained
 
@@ -205,6 +251,41 @@ These kinds are essential for discovery services as they help users find:
    ```
 
 3. Review event retention policy in `/etc/strfry/strfry.conf`
+
+### Initial Full Sync Issues
+
+**Sync timeouts or failures:**
+```bash
+# Check network connectivity
+curl -I https://purplepag.es/
+curl -I https://relay.damus.io/
+curl -I https://relay.primal.net/
+
+# Test manual sync with single relay
+sudo -u strfry strfry sync wss://purplepag.es/ --filter '{"kinds":[3,10002]}' --timeout 60
+```
+
+**Router service conflicts:**
+```bash
+# Ensure router is stopped during initial sync
+sudo systemctl stop strfry-router
+
+# Run initial sync manually
+sudo curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/strfry-initial-full-sync.sh | sudo bash
+
+# Check router service status after
+sudo systemctl status strfry-router
+```
+
+**Missing historical events after sync:**
+```bash
+# Verify events were imported
+strfry scan '{"kinds":[3],"limit":10}'    # Check contact lists
+strfry scan '{"kinds":[10002],"limit":10}' # Check relay lists
+
+# Re-run initial sync if needed
+sudo /path/to/strfry-initial-full-sync.sh
+```
 
 ## Performance Tuning
 

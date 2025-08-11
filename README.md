@@ -86,8 +86,11 @@ Use the deployment scripts to deploy the infrastructure:
 # Deploy regional container-based services
 ./scripts/deploy-region.ps1 -Regions eu,us,af
 
-# Deploy VM-based relay servers (NEW)
+# Deploy VM-based relay servers
 ./scripts/deploy-vm-relay.ps1 -Region "eu" -VmRelayCount 1
+
+# Deploy VM-based discovery relay servers
+./scripts/deploy-discovery-relay-vm.ps1 -Region "eu"
 ```
 
 ### VM Relay Deployment (NEW)

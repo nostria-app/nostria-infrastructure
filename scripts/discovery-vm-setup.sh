@@ -742,7 +742,7 @@ if [ -z "$REGION" ]; then
     echo "Warning: Could not determine region from hostname '$(hostname)', defaulting to 'eu'"
 fi
 
-DISCOVERY_DOMAIN="index.${REGION}.nostria.app"
+DISCOVERY_DOMAIN="discovery.${REGION}.nostria.app"
 echo "Configuring Caddy for domain: $DISCOVERY_DOMAIN (region: $REGION, hostname: $(hostname))"
 
 cat > /etc/caddy/Caddyfile << EOF

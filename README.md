@@ -108,9 +108,9 @@ curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/mai
 **If the HTTPS script hangs**: The script may hang at "Reloading Caddy with HTTPS configuration...". If it hangs for more than 2 minutes:
 
 1. **Press `Ctrl+C`** to cancel the hanging script
-2. **Run the emergency fix**:
+2. **Run the simple emergency fix**:
    ```sh
-   curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-https-hanging.sh | sudo bash
+   curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/simple-https-fix.sh | sudo bash
    ```
 3. **Verify HTTPS is working**: `curl -v https://discovery.[region].nostria.app/health`
 

@@ -22,19 +22,45 @@ if [ ! -f "/etc/caddy/Caddyfile.http.backup" ]; then
     exit 1
 fi
 
-# Get the discovery domain
-DISCOVERY_DOMAIN=$(grep -E "^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" /etc/caddy/Caddyfile.http.backup | head -1 | cut -d':' -f1 | tr -d ' ')
+# Get the discovery domain (improved parsing)
+echo "Debugging domain extraction from Caddyfile..."
+if [ -f "/etc/caddy/Caddyfile.http.backup" ]; then
+    echo "Found backup Caddyfile, extracting domain..."
+    grep -E "^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" /etc/caddy/Caddyfile.http.backup | head -3
+    echo "---"
+fi
+
+DISCOVERY_DOMAIN=$(grep -E "^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" /etc/caddy/Caddyfile.http.backup | head -1 | sed 's/:.*$//' | sed 's/[[:space:]]*$//' | sed 's/{.*$//')
 if [ -z "$DISCOVERY_DOMAIN" ]; then
     echo "ERROR: Could not determine discovery domain"
-    exit 1
+    echo "Attempting alternative parsing..."
+    DISCOVERY_DOMAIN=$(grep -o '[a-zA-Z0-9.-]*\.nostria\.app' /etc/caddy/Caddyfile.http.backup | head -1)
+    if [ -z "$DISCOVERY_DOMAIN" ]; then
+        echo "ERROR: Still could not determine discovery domain"
+        echo "Please check your Caddyfile.http.backup manually"
+        exit 1
+    fi
 fi
+
+# Clean the domain name more thoroughly
+DISCOVERY_DOMAIN=$(echo "$DISCOVERY_DOMAIN" | sed 's/[[:space:]]*$//' | sed 's/{.*$//' | sed 's/:.*$//')
+echo "Extracted domain: '$DISCOVERY_DOMAIN'"
 
 echo "Discovery domain: $DISCOVERY_DOMAIN"
 
-# Test DNS resolution
+# Test DNS resolution (with better domain extraction)
 echo "Testing DNS resolution..."
 EXTERNAL_IP=$(curl -s --connect-timeout 10 ifconfig.me 2>/dev/null)
-RESOLVED_IP=$(nslookup $DISCOVERY_DOMAIN 2>/dev/null | grep -A1 "Name:" | grep "Address:" | cut -d' ' -f2 | tail -1)
+
+# More robust DNS resolution check
+if [ -n "$DISCOVERY_DOMAIN" ]; then
+    RESOLVED_IP=$(dig +short $DISCOVERY_DOMAIN 2>/dev/null | tail -1)
+    if [ -z "$RESOLVED_IP" ]; then
+        RESOLVED_IP=$(nslookup $DISCOVERY_DOMAIN 2>/dev/null | grep -A1 "Name:" | grep "Address:" | awk '{print $2}' | tail -1)
+    fi
+else
+    RESOLVED_IP=""
+fi
 
 echo "VM External IP: $EXTERNAL_IP"
 echo "DNS Resolved IP: $RESOLVED_IP"

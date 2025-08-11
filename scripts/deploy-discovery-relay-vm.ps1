@@ -16,7 +16,10 @@ param (
     [string]$VmSize = "Standard_B2s",
     
     [Parameter(Mandatory=$false)]
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipPostDeploymentFixes
 )
 
 function Write-StatusMessage {
@@ -199,18 +202,100 @@ try {
         Write-StatusMessage "- Data Disk: 64GB StandardSSD_LRS (strfry database at /var/lib/strfry)" -Type Info
         Write-StatusMessage "- Database can be expanded later via Azure Portal if needed" -Type Info
         Write-StatusMessage "" -Type Info
+        
+        # Run the PKI fix script on the newly deployed VM to prevent Caddy startup issues
+        if ($outputs.discoveryRelayPublicIp -and -not $SkipPostDeploymentFixes) {
+            $vmPublicIp = $outputs.discoveryRelayPublicIp.value
+            Write-StatusMessage "Running post-deployment fixes on VM ($vmPublicIp)..." -Type Info
+            Write-StatusMessage "This will fix common Caddy PKI issues and ensure services start properly" -Type Info
+            Write-StatusMessage "(Use -SkipPostDeploymentFixes to skip this step)" -Type Info
+            
+            try {
+                # Wait a bit more for the VM to be fully ready
+                Write-StatusMessage "Waiting for VM to be fully ready for SSH connections..." -Type Info
+                Start-Sleep -Seconds 60
+                
+                # Run the PKI fix script via SSH
+                $fixCommand = "curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash"
+                Write-StatusMessage "Executing PKI fix script on VM..." -Type Info
+                
+                # Use ssh with connection timeout and retry
+                $sshAttempts = 3
+                $sshSuccess = $false
+                
+                for ($attempt = 1; $attempt -le $sshAttempts; $attempt++) {
+                    Write-StatusMessage "SSH connection attempt $attempt/$sshAttempts..." -Type Info
+                    try {
+                        # Test SSH connectivity first
+                        & ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null azureuser@$vmPublicIp "echo 'SSH test successful'" 2>&1 | Out-Null
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-StatusMessage "SSH connectivity test failed" -Type Warning
+                            continue
+                        }
+                        
+                        # Run the fix script
+                        $sshResult = & ssh -o ConnectTimeout=30 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null azureuser@$vmPublicIp $fixCommand 2>&1
+                        $sshExitCode = $LASTEXITCODE
+                        
+                        if ($sshExitCode -eq 0) {
+                            Write-StatusMessage "PKI fix script executed successfully!" -Type Success
+                            Write-StatusMessage "Caddy should now start without PKI errors" -Type Success
+                            $sshSuccess = $true
+                            break
+                        } else {
+                            Write-StatusMessage "SSH command failed (exit code: $sshExitCode). Output:" -Type Warning
+                            $sshResult | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+                        }
+                    } catch {
+                        Write-StatusMessage "SSH attempt $attempt failed: $($_.Exception.Message)" -Type Warning
+                    }
+                    
+                    if ($attempt -lt $sshAttempts) {
+                        Write-StatusMessage "Waiting 30 seconds before retry..." -Type Info
+                        Start-Sleep -Seconds 30
+                    }
+                }
+                
+                if (-not $sshSuccess) {
+                    Write-StatusMessage "Failed to run PKI fix script automatically after $sshAttempts attempts" -Type Warning
+                    Write-StatusMessage "You can run it manually after SSH'ing to the VM:" -Type Warning
+                    Write-StatusMessage "  ssh azureuser@$vmPublicIp" -Type Info
+                    Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
+                }
+            } catch {
+                Write-StatusMessage "Error during post-deployment fix: $($_.Exception.Message)" -Type Warning
+                Write-StatusMessage "The VM deployed successfully, but automatic fixes failed" -Type Warning
+                Write-StatusMessage "Please run the PKI fix manually after connecting to the VM" -Type Warning
+            }
+        } elseif ($SkipPostDeploymentFixes) {
+            Write-StatusMessage "Skipping post-deployment fixes (as requested)" -Type Info
+            Write-StatusMessage "You may need to run PKI fixes manually if Caddy has startup issues:" -Type Info
+            Write-StatusMessage "  ssh azureuser@$($outputs.discoveryRelayPublicIp.value)" -Type Info
+            Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
+        }
+        
+        Write-StatusMessage "" -Type Info
         Write-StatusMessage "Next steps:" -Type Info
-        Write-StatusMessage "1. Update DNS records to point index.$Region.nostria.app to the VM public IP" -Type Info
-        Write-StatusMessage "2. The discovery relay should be accessible at https://index.$Region.nostria.app once DNS propagates" -Type Info
-        Write-StatusMessage "3. You can SSH to the VM using: ssh azureuser@<VM-Public-IP>" -Type Info
-        Write-StatusMessage "4. Check relay status: /usr/local/bin/strfry-health-check.sh" -Type Info
-        Write-StatusMessage "5. Monitor logs: sudo journalctl -u strfry -f" -Type Info
+        Write-StatusMessage "1. Update DNS records to point discovery.$Region.nostria.app to the VM public IP" -Type Info
+        Write-StatusMessage "2. Wait for DNS propagation (5-30 minutes)" -Type Info
+        Write-StatusMessage "3. Test HTTP access: curl -v http://discovery.$Region.nostria.app/health" -Type Info
+        Write-StatusMessage "4. Enable HTTPS once DNS is working:" -Type Info
+        Write-StatusMessage "   ssh azureuser@$vmPublicIp" -Type Info
+        Write-StatusMessage "   curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/simple-https-fix.sh | sudo bash" -Type Info
+        Write-StatusMessage "" -Type Info
+        Write-StatusMessage "Troubleshooting commands (if needed):" -Type Info
+        Write-StatusMessage "- Check DNS: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash" -Type Info
+        Write-StatusMessage "- Debug endpoints: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/debug-discovery-endpoints.sh | sudo bash" -Type Info
+        Write-StatusMessage "- Fix Caddy issues: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
         Write-StatusMessage "" -Type Info
         Write-StatusMessage "Discovery Relay Configuration:" -Type Info
+        Write-StatusMessage "- Domain: discovery.$Region.nostria.app" -Type Info
         Write-StatusMessage "- Config file: /etc/strfry/strfry.conf (uses discovery-relay config)" -Type Info
         Write-StatusMessage "- Database: /var/lib/strfry/db (on dedicated 64GB SSD)" -Type Info
         Write-StatusMessage "- Service: systemctl status strfry" -Type Info
+        Write-StatusMessage "- Service: systemctl status caddy" -Type Info
         Write-StatusMessage "- Check disk usage: df -h /var/lib/strfry" -Type Info
+        Write-StatusMessage "- Health check: /usr/local/bin/strfry-discovery-health-check.sh" -Type Info
         
     } else {
         Write-StatusMessage "Deployment failed with exit code: $azExitCode" -Type Error

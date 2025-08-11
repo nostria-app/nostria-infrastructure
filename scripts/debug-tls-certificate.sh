@@ -23,7 +23,7 @@ if [ -z "$REGION" ]; then
     echo "⚠️  Could not determine region from hostname '$(hostname)', defaulting to 'eu'"
 fi
 
-EXPECTED_DOMAIN="index.${REGION}.nostria.app"
+EXPECTED_DOMAIN="discovery.${REGION}.nostria.app"
 echo "🎯 Expected Domain: $EXPECTED_DOMAIN"
 echo "🖥️  Hostname: $(hostname)"
 echo ""

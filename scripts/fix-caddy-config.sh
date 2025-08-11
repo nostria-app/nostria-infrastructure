@@ -36,7 +36,7 @@ if [ -z "$REGION" ]; then
     echo "Warning: Could not determine region, defaulting to 'eu'"
 fi
 
-DISCOVERY_DOMAIN="index.${REGION}.nostria.app"
+DISCOVERY_DOMAIN="discovery.${REGION}.nostria.app"
 echo "Configuring Caddy for domain: $DISCOVERY_DOMAIN"
 
 # Create new Caddyfile with proper formatting

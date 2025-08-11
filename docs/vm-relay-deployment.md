@@ -20,13 +20,13 @@ sudo ss -tulpn | grep 443
 /usr/local/bin/strfry-health-check.sh
 
 # Debug TLS Certificate Issues
-curl -I https://index.eu.nostria.app/health
+curl -I https://discovery.eu.nostria.app/health
 sudo journalctl -u caddy -f --no-pager
 sudo caddy validate --config /etc/caddy/Caddyfile
 
 # Check certificate status
 sudo /usr/local/bin/caddy list-certificates
-openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app
+openssl s_client -connect discovery.eu.nostria.app:443 -servername discovery.eu.nostria.app
 
 ## Overview
 
@@ -290,12 +290,12 @@ Configure your monitoring system to check:
    sudo journalctl -u caddy --since "1 hour ago" | grep -i cert
    
    # Verify DNS resolution from the VM
-   nslookup index.eu.nostria.app
-   dig index.eu.nostria.app
-   
+   nslookup discovery.eu.nostria.app
+   dig discovery.eu.nostria.app
+
    # Test if the domain resolves to this VM's IP
    VM_IP=$(curl -s ifconfig.me)
-   RESOLVED_IP=$(dig +short index.eu.nostria.app)
+   RESOLVED_IP=$(dig +short discovery.eu.nostria.app)
    echo "VM IP: $VM_IP"
    echo "DNS IP: $RESOLVED_IP"
    
@@ -304,8 +304,8 @@ Configure your monitoring system to check:
    sudo netstat -tlnp | grep :80
    
    # Test ACME challenge manually
-   curl -I http://index.eu.nostria.app/.well-known/acme-challenge/test
-   
+   curl -I http://discovery.eu.nostria.app/.well-known/acme-challenge/test
+
    # Check Caddy configuration syntax
    sudo /usr/local/bin/caddy validate --config /etc/caddy/Caddyfile
    
@@ -320,13 +320,13 @@ Configure your monitoring system to check:
    ```bash
    # Check what IP the domain resolves to
    VM_PUBLIC_IP=$(curl -s ifconfig.me)
-   DOMAIN_IP=$(dig +short index.eu.nostria.app)
+   DOMAIN_IP=$(dig +short discovery.eu.nostria.app)
    
    echo "VM Public IP: $VM_PUBLIC_IP"
    echo "Domain resolves to: $DOMAIN_IP"
    
    if [ "$VM_PUBLIC_IP" != "$DOMAIN_IP" ]; then
-       echo "❌ DNS mismatch! Update DNS records to point index.eu.nostria.app to $VM_PUBLIC_IP"
+       echo "❌ DNS mismatch! Update DNS records to point discovery.eu.nostria.app to $VM_PUBLIC_IP"
    else
        echo "✅ DNS correctly configured"
    fi
@@ -341,7 +341,7 @@ Configure your monitoring system to check:
    sudo /usr/local/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile --debug
    
    # In another terminal, test the domain
-   curl -I https://index.eu.nostria.app/health
+   curl -I https://discovery.eu.nostria.app/health
    
    # Stop debug mode and restart service
    # Ctrl+C to stop, then:
@@ -353,7 +353,7 @@ Configure your monitoring system to check:
    # Check if Let's Encrypt can reach your server
    # Test HTTP-01 challenge path
    echo "test" | sudo tee /var/www/html/.well-known/acme-challenge/test
-   curl http://index.eu.nostria.app/.well-known/acme-challenge/test
+   curl http://discovery.eu.nostria.app/.well-known/acme-challenge/test
    
    # Check firewall rules
    sudo ufw status numbered
@@ -366,10 +366,10 @@ Configure your monitoring system to check:
 5. **Certificate authority issues:**
    ```bash
    # Check if using correct CA (Let's Encrypt)
-   openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app | openssl x509 -noout -issuer
+   openssl s_client -connect discovery.eu.nostria.app:443 -servername discovery.eu.nostria.app | openssl x509 -noout -issuer
    
    # Check certificate details
-   echo | openssl s_client -connect index.eu.nostria.app:443 -servername index.eu.nostria.app 2>/dev/null | openssl x509 -noout -dates -subject
+   echo | openssl s_client -connect discovery.eu.nostria.app:443 -servername discovery.eu.nostria.app 2>/dev/null | openssl x509 -noout -dates -subject
    ```
 
 6. **Fix certutil warning (optional):**

@@ -57,12 +57,21 @@ EOF
         if [ $(lsblk -n /dev/$DATA_DISK | wc -l) -gt 1 ]; then
             echo "Data disk already has partitions, checking if mounted..."
             PARTITION="${DATA_DISK}1"
-            if mount | grep -q "/dev/$PARTITION on /var/lib/strfry"; then
+            if mount | grep -q "/dev/$PARTITION.*on /var/lib/strfry"; then
                 echo "Data disk partition already mounted at /var/lib/strfry"
-            else
-                echo "Mounting existing data disk partition..."
-                # Unmount if mounted elsewhere
+            elif mount | grep -q "/dev/$PARTITION"; then
+                echo "Data disk partition mounted elsewhere, remounting to /var/lib/strfry..."
+                # Unmount from current location
                 umount /dev/$PARTITION 2>/dev/null || true
+                # Mount to correct location
+                mount /dev/$PARTITION /var/lib/strfry || {
+                    echo "Failed to mount existing partition, will reformat..."
+                    # Format and mount
+                    mkfs.ext4 -F /dev/$PARTITION
+                    mount /dev/$PARTITION /var/lib/strfry
+                }
+            else
+                echo "Mounting existing data disk partition to /var/lib/strfry..."
                 mount /dev/$PARTITION /var/lib/strfry || {
                     echo "Failed to mount existing partition, will reformat..."
                     # Format and mount

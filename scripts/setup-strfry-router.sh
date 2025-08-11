@@ -39,7 +39,8 @@ fi
 echo "Detected current region: $CURRENT_REGION"
 echo "Configuring sync with other Discovery Relays..."
 
-cat > /etc/strfry/strfry-router.conf << EOF
+# Start building the configuration file
+cat > /etc/strfry/strfry-router.conf << 'EOF'
 # strfry router configuration for syncing event kinds 3 and 10002
 # This configuration handles:
 # - Two-way sync with other Nostria Discovery Relays
@@ -53,10 +54,12 @@ connectionTimeout = 20
 logLevel = "info"
 
 # Stream configurations
-streams {EOF
+streams {
+EOF
 
 # Add two-way sync with other Nostria Discovery Relays (excluding current region)
 if [ "$CURRENT_REGION" != "eu" ]; then
+    echo "Adding EU Discovery Relay sync configuration..."
     cat >> /etc/strfry/strfry-router.conf << 'EOF'
     
     # Two-way sync with Nostria EU Discovery Relay
@@ -74,10 +77,12 @@ if [ "$CURRENT_REGION" != "eu" ]; then
         
         # Reconnect settings for reliability
         reconnectDelaySeconds = 30
-    }EOF
+    }
+EOF
 fi
 
 if [ "$CURRENT_REGION" != "us" ]; then
+    echo "Adding US Discovery Relay sync configuration..."
     cat >> /etc/strfry/strfry-router.conf << 'EOF'
     
     # Two-way sync with Nostria US Discovery Relay
@@ -95,10 +100,12 @@ if [ "$CURRENT_REGION" != "us" ]; then
         
         # Reconnect settings for reliability
         reconnectDelaySeconds = 30
-    }EOF
+    }
+EOF
 fi
 
 if [ "$CURRENT_REGION" != "af" ]; then
+    echo "Adding AF Discovery Relay sync configuration..."
     cat >> /etc/strfry/strfry-router.conf << 'EOF'
     
     # Two-way sync with Nostria AF Discovery Relay
@@ -116,10 +123,12 @@ if [ "$CURRENT_REGION" != "af" ]; then
         
         # Reconnect settings for reliability
         reconnectDelaySeconds = 30
-    }EOF
+    }
+EOF
 fi
 
-# Add the rest of the configuration
+# Add the rest of the configuration (external relays)
+echo "Adding external relay sync configurations..."
 cat >> /etc/strfry/strfry-router.conf << 'EOF'
     
     # Two-way sync with purplepag.es
@@ -184,9 +193,35 @@ cat >> /etc/strfry/strfry-router.conf << 'EOF'
 # maxEventsPerSecond = 100
 EOF
 
+echo "Configuration file created. Current region: $CURRENT_REGION"
+echo "Nostria Discovery Relay sync entries added:"
+if [ "$CURRENT_REGION" != "eu" ]; then
+    echo "  ✓ nostria_eu (EU Discovery Relay)"
+fi
+if [ "$CURRENT_REGION" != "us" ]; then
+    echo "  ✓ nostria_us (US Discovery Relay)"
+fi
+if [ "$CURRENT_REGION" != "af" ]; then
+    echo "  ✓ nostria_af (AF Discovery Relay)"
+fi
+
 # Set proper ownership
 chown root:root /etc/strfry/strfry-router.conf
 chmod 644 /etc/strfry/strfry-router.conf
+
+# Verify the configuration was written correctly
+echo ""
+echo "=== Configuration File Verification ==="
+echo "Contents of /etc/strfry/strfry-router.conf:"
+echo "----------------------------------------"
+cat /etc/strfry/strfry-router.conf
+echo "----------------------------------------"
+echo ""
+
+# Count the number of stream entries
+STREAM_COUNT=$(grep -c "^\s*[a-zA-Z_]*\s*{" /etc/strfry/strfry-router.conf || echo "0")
+echo "Number of sync streams configured: $STREAM_COUNT"
+echo ""
 
 # Create the systemd service file
 echo "Creating strfry router systemd service..."

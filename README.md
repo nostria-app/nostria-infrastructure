@@ -95,10 +95,47 @@ Use the deployment scripts to deploy the infrastructure:
 
 ### Deploying Discovery Relay VM
 
-After running the powershell script, the following must be done.
+After running the powershell script, the following must be done:
+
+1. **Update DNS**: Point `discovery.[region].nostria.app` to your VM's public IP
+2. **Wait for DNS propagation**: 5-30 minutes typically
+3. **Enable HTTPS**: Run the HTTPS enable script
 
 ```sh
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-https.sh | sudo bash
+```
+
+**If the HTTPS script hangs**: The script may hang at "Reloading Caddy with HTTPS configuration...". If it hangs for more than 2 minutes:
+
+1. **Press `Ctrl+C`** to cancel the hanging script
+2. **Run the emergency fix**:
+   ```sh
+   curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-https-hanging.sh | sudo bash
+   ```
+3. **Verify HTTPS is working**: `curl -v https://discovery.[region].nostria.app/health`
+
+**Alternative manual fix**:
+```sh
+# Stop any hanging processes
+sudo pkill -f caddy; sudo systemctl stop caddy; sleep 3
+
+# Restart Caddy manually
+sudo systemctl start caddy
+
+# Monitor certificate acquisition
+sudo journalctl -u caddy -f
+```
+
+**Troubleshooting HTTPS issues**:
+```sh
+# Check if DNS is properly configured
+nslookup discovery.[region].nostria.app
+
+# Debug endpoint issues
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/debug-discovery-endpoints.sh | sudo bash
+
+# Fix strfry monitoring if needed
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-discovery-endpoints.sh | sudo bash
 ```
 
 === IMPORTANT: Enable HTTPS after DNS configuration ===

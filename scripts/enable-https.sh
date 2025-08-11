@@ -160,13 +160,37 @@ fi
 
 echo "Caddyfile validation passed"
 
-# Reload Caddy with new HTTPS configuration
-echo "Reloading Caddy with HTTPS configuration..."
-if ! systemctl reload caddy; then
-    echo "ERROR: Failed to reload Caddy with HTTPS configuration"
+# Restart Caddy with new HTTPS configuration (reload can hang during HTTP->HTTPS transition)
+echo "Restarting Caddy with HTTPS configuration..."
+systemctl stop caddy
+sleep 3
+
+# Start Caddy with timeout protection to prevent hanging
+timeout 60 systemctl start caddy &
+CADDY_START_PID=$!
+
+# Wait for Caddy to start with timeout
+echo "Waiting for Caddy to start (timeout: 60 seconds)..."
+CADDY_STARTED=false
+for i in {1..60}; do
+    if systemctl is-active --quiet caddy; then
+        CADDY_STARTED=true
+        echo "Caddy started successfully after $i seconds"
+        break
+    fi
+    sleep 1
+done
+
+# Kill the start command if it's still running
+kill $CADDY_START_PID 2>/dev/null || true
+
+if [ "$CADDY_STARTED" = "false" ]; then
+    echo "ERROR: Caddy failed to start with HTTPS configuration within 60 seconds"
     echo "Restoring HTTP configuration..."
     cp /etc/caddy/Caddyfile.http.backup /etc/caddy/Caddyfile
-    systemctl reload caddy
+    systemctl stop caddy 2>/dev/null || true
+    sleep 2
+    systemctl start caddy
     exit 1
 fi
 

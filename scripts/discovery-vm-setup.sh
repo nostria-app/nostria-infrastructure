@@ -1,12 +1,48 @@
 #!/bin/bash
 set -e
 
+# Enhanced error handling function
+error_exit() {
+    echo "ERROR: $1" >&2
+    echo "Script failed at line $2" >&2
+    echo "Command: $3" >&2
+    exit "${4:-1}"
+}
+
+# Trap errors and provide context
+trap 'error_exit "Script failed" $LINENO "$BASH_COMMAND" $?' ERR
+
 # Get force update parameter if provided
 FORCE_UPDATE=${1:-"initial"}
 
 # Log all output to a file for debugging
 exec > >(tee -a /var/log/discovery-vm-setup.log) 2>&1
 echo "Starting Discovery Relay VM setup at $(date) with force update: $FORCE_UPDATE"
+echo "Running on: $(hostname) ($(uname -a))"
+echo "Available memory: $(free -h)"
+echo "Available disk space: $(df -h)"
+echo "Network interfaces: $(ip addr show | grep -E '^[0-9]+:' | cut -d: -f2)"
+
+# Test basic system requirements
+echo "Testing basic system requirements..."
+if ! command -v apt-get &> /dev/null; then
+    error_exit "apt-get not found - this script requires Ubuntu/Debian" $LINENO "$BASH_COMMAND" 8
+fi
+
+if ! command -v systemctl &> /dev/null; then
+    error_exit "systemctl not found - this script requires systemd" $LINENO "$BASH_COMMAND" 8
+fi
+
+# Test internet connectivity early
+echo "Testing internet connectivity..."
+if ! ping -c 3 8.8.8.8 > /dev/null 2>&1; then
+    echo "WARNING: Cannot ping 8.8.8.8 - checking DNS resolution..."
+    if ! nslookup google.com > /dev/null 2>&1; then
+        error_exit "No internet connectivity detected" $LINENO "$BASH_COMMAND" 8
+    fi
+    echo "DNS resolution works, continuing..."
+fi
+echo "Internet connectivity confirmed"
 
 # Check if this is a re-run (services already exist)
 RERUN=false
@@ -29,8 +65,19 @@ deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe mu
 deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
 EOF
 
-    apt-get update || true
-    apt-get upgrade -y
+    echo "Updating package lists..."
+    if ! apt-get update; then
+        echo "WARNING: apt-get update failed on first attempt, retrying in 10 seconds..."
+        sleep 10
+        if ! apt-get update; then
+            error_exit "Failed to update package lists after retry" $LINENO "$BASH_COMMAND" 8
+        fi
+    fi
+    
+    echo "Upgrading system packages..."
+    if ! apt-get upgrade -y; then
+        echo "WARNING: System upgrade failed, continuing anyway..."
+    fi
 
     # Setup data disk for strfry database
     echo "Setting up data disk for strfry database..."
@@ -151,14 +198,26 @@ EOF
     fi
 else
     echo "Skipping package sources configuration (rerun detected)"
-    apt-get update || true
+    echo "Updating package lists for rerun..."
+    if ! apt-get update; then
+        echo "WARNING: apt-get update failed on rerun, retrying..."
+        sleep 5
+        apt-get update || echo "WARNING: Package update still failed on rerun"
+    fi
 fi
 
 # Install required packages for strfry compilation
 if [ "$RERUN" = "false" ]; then
     echo "Installing build dependencies..."
-    apt-get install -y build-essential git wget curl net-tools
-    apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev
+    echo "Installing basic build tools..."
+    if ! apt-get install -y build-essential git wget curl net-tools; then
+        error_exit "Failed to install basic build tools" $LINENO "$BASH_COMMAND" 8
+    fi
+    
+    echo "Installing development libraries..."
+    if ! apt-get install -y libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev; then
+        error_exit "Failed to install development libraries" $LINENO "$BASH_COMMAND" 8
+    fi
 
     # Verify essential tools are available
     if ! command -v make &> /dev/null; then
@@ -180,16 +239,119 @@ if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/caddy" ]; then
     # Install Caddy directly from GitHub releases (more reliable for automated environments)
     CADDY_VERSION="2.7.6"
     echo "Downloading Caddy v${CADDY_VERSION}..."
-    wget -q "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" -O /tmp/caddy.tar.gz
-    cd /tmp
-    tar -xzf caddy.tar.gz
-    mv caddy /usr/local/bin/
+    
+    # Test network connectivity first
+    echo "Testing network connectivity..."
+    if ! curl -s --connect-timeout 10 https://api.github.com/repos/caddyserver/caddy/releases/latest > /dev/null; then
+        echo "ERROR: Cannot reach GitHub. Network connectivity issue detected."
+        echo "Waiting 30 seconds for network to stabilize..."
+        sleep 30
+        if ! curl -s --connect-timeout 10 https://api.github.com/repos/caddyserver/caddy/releases/latest > /dev/null; then
+            echo "ERROR: Still cannot reach GitHub. Aborting Caddy installation."
+            exit 8
+        fi
+    fi
+    echo "Network connectivity confirmed"
+    
+    # Create temporary directory for download
+    CADDY_TEMP_DIR=$(mktemp -d)
+    echo "Using temporary directory: $CADDY_TEMP_DIR"
+    
+    # Download with more verbose output and error checking
+    CADDY_URL="https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+    echo "Downloading from: $CADDY_URL"
+    
+    if ! wget --timeout=60 --tries=3 --progress=dot:binary "$CADDY_URL" -O "$CADDY_TEMP_DIR/caddy.tar.gz"; then
+        echo "ERROR: Failed to download Caddy from GitHub"
+        echo "Trying alternative download method with curl..."
+        if ! curl -L --connect-timeout 60 --max-time 300 "$CADDY_URL" -o "$CADDY_TEMP_DIR/caddy.tar.gz"; then
+            echo "ERROR: Both wget and curl failed to download Caddy"
+            echo "Attempting fallback installation using apt package manager..."
+            rm -rf "$CADDY_TEMP_DIR"
+            
+            # Fallback: Try to install Caddy from official repository
+            echo "Adding Caddy official repository..."
+            apt-get update
+            apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+            
+            if curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg 2>/dev/null; then
+                curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+                apt-get update
+                if apt-get install -y caddy; then
+                    echo "Caddy installed successfully via apt package manager"
+                    # Skip the manual installation steps below
+                    CADDY_INSTALLED_VIA_APT=true
+                else
+                    error_exit "Failed to install Caddy via apt as well" $LINENO "$BASH_COMMAND" 8
+                fi
+            else
+                error_exit "All Caddy installation methods failed" $LINENO "$BASH_COMMAND" 8
+            fi
+        fi
+    fi
+    
+    # Only proceed with manual installation if not installed via apt
+    if [ "${CADDY_INSTALLED_VIA_APT:-false}" != "true" ]; then
+    
+    echo "Download completed successfully"
+    
+    # Verify download
+    if [ ! -f "$CADDY_TEMP_DIR/caddy.tar.gz" ] || [ ! -s "$CADDY_TEMP_DIR/caddy.tar.gz" ]; then
+        echo "ERROR: Downloaded file is missing or empty"
+        ls -la "$CADDY_TEMP_DIR/"
+        rm -rf "$CADDY_TEMP_DIR"
+        exit 8
+    fi
+    
+    echo "Extracting Caddy archive..."
+    cd "$CADDY_TEMP_DIR"
+    
+    if ! tar -xzf caddy.tar.gz; then
+        echo "ERROR: Failed to extract Caddy archive"
+        ls -la "$CADDY_TEMP_DIR/"
+        file caddy.tar.gz
+        rm -rf "$CADDY_TEMP_DIR"
+        exit 8
+    fi
+    
+    # Verify extraction
+    if [ ! -f "caddy" ]; then
+        echo "ERROR: Caddy binary not found after extraction"
+        ls -la "$CADDY_TEMP_DIR/"
+        rm -rf "$CADDY_TEMP_DIR"
+        exit 8
+    fi
+    
+    echo "Installing Caddy binary..."
+    if ! mv caddy /usr/local/bin/; then
+        echo "ERROR: Failed to move Caddy binary to /usr/local/bin/"
+        ls -la /usr/local/bin/
+        rm -rf "$CADDY_TEMP_DIR"
+        exit 8
+    fi
+    
     chmod +x /usr/local/bin/caddy
-    rm -f caddy.tar.gz LICENSE README.md
+    
+    # Verify installation
+    if ! /usr/local/bin/caddy version; then
+        echo "ERROR: Caddy binary is not working properly"
+        ls -la /usr/local/bin/caddy
+        rm -rf "$CADDY_TEMP_DIR"
+        exit 8
+    fi
+    
+    # Clean up
+    rm -rf "$CADDY_TEMP_DIR"
+    echo "Caddy installation completed successfully"
+    fi  # End of manual installation block
 
-    # Create caddy user and group
-    groupadd --system caddy
-    useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
+    # Create caddy user and group (for both installation methods)
+    if ! getent group caddy > /dev/null; then
+        groupadd --system caddy
+    fi
+    if ! getent passwd caddy > /dev/null; then
+        useradd --system --gid caddy --create-home --home-dir /var/lib/caddy --shell /usr/sbin/nologin --comment "Caddy web server" caddy
+    fi
 
     # Create necessary directories
     mkdir -p /etc/caddy
@@ -197,8 +359,15 @@ if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/caddy" ]; then
     chown -R caddy:caddy /var/lib/caddy
     chown -R caddy:caddy /var/log/caddy
 
-    # Create systemd service for Caddy
-    cat > /etc/systemd/system/caddy.service << 'EOF'
+    # Create systemd service for Caddy (handle both installation paths)
+    CADDY_BINARY_PATH="/usr/local/bin/caddy"
+    if [ "${CADDY_INSTALLED_VIA_APT:-false}" = "true" ] || [ -f "/usr/bin/caddy" ]; then
+        CADDY_BINARY_PATH="/usr/bin/caddy"
+    fi
+    
+    echo "Using Caddy binary at: $CADDY_BINARY_PATH"
+    
+    cat > /etc/systemd/system/caddy.service << EOF
 [Unit]
 Description=Caddy
 Documentation=https://caddyserver.com/docs/
@@ -209,8 +378,8 @@ Requires=network-online.target
 Type=notify
 User=caddy
 Group=caddy
-ExecStart=/usr/local/bin/caddy run --environ --config /etc/caddy/Caddyfile
-ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --force
+ExecStart=$CADDY_BINARY_PATH run --environ --config /etc/caddy/Caddyfile
+ExecReload=$CADDY_BINARY_PATH reload --config /etc/caddy/Caddyfile --force
 TimeoutStopSec=5s
 LimitNOFILE=1048576
 LimitNPROC=1048576

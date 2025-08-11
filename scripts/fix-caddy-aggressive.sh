@@ -86,7 +86,7 @@ echo "Configuring for domain: $DISCOVERY_DOMAIN"
 
 # Create ultra-minimal Caddyfile that avoids ALL PKI functionality
 echo "Creating ultra-minimal Caddyfile (no PKI, no ACME, no certificates)..."
-cat > /etc/caddy/Caddyfile << 'EOF'
+cat > /etc/caddy/Caddyfile << EOF
 # Ultra-minimal configuration - no PKI, no ACME, no certificates
 {
 	admin localhost:2019
@@ -104,7 +104,7 @@ cat > /etc/caddy/Caddyfile << 'EOF'
 }
 
 # HTTP-only server - no certificates involved
-:80 {
+$DISCOVERY_DOMAIN:80 {
 	header -Server
 	
 	handle /health {
@@ -115,14 +115,13 @@ cat > /etc/caddy/Caddyfile << 'EOF'
 		reverse_proxy localhost:7777 {
 			header_up Host {host}
 			header_up X-Real-IP {remote_host}
-			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto http
 		}
 	}
 }
 
 # Internal monitoring on different port
-:8080 {
+localhost:8080 {
 	handle /metrics {
 		reverse_proxy localhost:7778
 	}
@@ -193,7 +192,12 @@ echo "Testing Caddy startup manually..."
 echo "Running: $CADDY_BINARY run --config /etc/caddy/Caddyfile"
 echo "This will run for 15 seconds to test startup..."
 
-timeout 15 sudo -u caddy $CADDY_BINARY run --config /etc/caddy/Caddyfile &
+# Give Caddy binary the capability to bind to privileged ports
+echo "Setting CAP_NET_BIND_SERVICE capability on Caddy binary..."
+setcap 'cap_net_bind_service=+ep' $CADDY_BINARY
+
+# Test with proper capabilities
+timeout 15 $CADDY_BINARY run --config /etc/caddy/Caddyfile &
 CADDY_PID=$!
 
 sleep 10
@@ -215,7 +219,7 @@ if kill -0 $CADDY_PID 2>/dev/null; then
 else
     echo "✗ Caddy failed to start even in manual test"
     echo "Getting detailed error output..."
-    sudo -u caddy $CADDY_BINARY run --config /etc/caddy/Caddyfile 2>&1 | head -20
+    $CADDY_BINARY run --config /etc/caddy/Caddyfile 2>&1 | head -20
     exit 1
 fi
 
@@ -256,7 +260,7 @@ else
     echo ""
     echo "=== Manual Test ==="
     echo "Running Caddy manually to see error:"
-    timeout 10 sudo -u caddy $CADDY_BINARY run --config /etc/caddy/Caddyfile 2>&1 || true
+    timeout 10 $CADDY_BINARY run --config /etc/caddy/Caddyfile 2>&1 || true
     exit 1
 fi
 

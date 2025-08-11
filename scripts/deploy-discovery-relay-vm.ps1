@@ -203,11 +203,11 @@ try {
         Write-StatusMessage "- Database can be expanded later via Azure Portal if needed" -Type Info
         Write-StatusMessage "" -Type Info
         
-        # Run the PKI fix script on the newly deployed VM to prevent Caddy startup issues
+        # Run the aggressive Caddy fix script on the newly deployed VM to prevent startup issues
         if ($outputs.discoveryRelayPublicIp -and -not $SkipPostDeploymentFixes) {
             $vmPublicIp = $outputs.discoveryRelayPublicIp.value
             Write-StatusMessage "Running post-deployment fixes on VM ($vmPublicIp)..." -Type Info
-            Write-StatusMessage "This will fix common Caddy PKI issues and ensure services start properly" -Type Info
+            Write-StatusMessage "This will fix Caddy port binding and PKI issues to ensure services start properly" -Type Info
             Write-StatusMessage "(Use -SkipPostDeploymentFixes to skip this step)" -Type Info
             
             try {
@@ -215,9 +215,9 @@ try {
                 Write-StatusMessage "Waiting for VM to be fully ready for SSH connections..." -Type Info
                 Start-Sleep -Seconds 60
                 
-                # Run the PKI fix script via SSH
-                $fixCommand = "curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash"
-                Write-StatusMessage "Executing PKI fix script on VM..." -Type Info
+                # Run the aggressive fix script via SSH (includes port binding fix)
+                $fixCommand = "curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash"
+                Write-StatusMessage "Executing aggressive Caddy fix script on VM..." -Type Info
                 
                 # Use ssh with connection timeout and retry
                 $sshAttempts = 3
@@ -238,8 +238,8 @@ try {
                         $sshExitCode = $LASTEXITCODE
                         
                         if ($sshExitCode -eq 0) {
-                            Write-StatusMessage "PKI fix script executed successfully!" -Type Success
-                            Write-StatusMessage "Caddy should now start without PKI errors" -Type Success
+                            Write-StatusMessage "Aggressive Caddy fix script executed successfully!" -Type Success
+                            Write-StatusMessage "Caddy should now start without port binding or PKI errors" -Type Success
                             $sshSuccess = $true
                             break
                         } else {
@@ -257,21 +257,24 @@ try {
                 }
                 
                 if (-not $sshSuccess) {
-                    Write-StatusMessage "Failed to run PKI fix script automatically after $sshAttempts attempts" -Type Warning
+                    Write-StatusMessage "Failed to run aggressive Caddy fix script automatically after $sshAttempts attempts" -Type Warning
                     Write-StatusMessage "You can run it manually after SSH'ing to the VM:" -Type Warning
                     Write-StatusMessage "  ssh azureuser@$vmPublicIp" -Type Info
-                    Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
+                    Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash" -Type Info
+                    Write-StatusMessage "  # Or for just port binding: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-port-binding.sh | sudo bash" -Type Info
                 }
             } catch {
                 Write-StatusMessage "Error during post-deployment fix: $($_.Exception.Message)" -Type Warning
                 Write-StatusMessage "The VM deployed successfully, but automatic fixes failed" -Type Warning
-                Write-StatusMessage "Please run the PKI fix manually after connecting to the VM" -Type Warning
+                Write-StatusMessage "Please run the aggressive Caddy fix manually after connecting to the VM" -Type Warning
+                Write-StatusMessage "  ssh azureuser@$vmPublicIp" -Type Info
+                Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash" -Type Info
             }
         } elseif ($SkipPostDeploymentFixes) {
             Write-StatusMessage "Skipping post-deployment fixes (as requested)" -Type Info
-            Write-StatusMessage "You may need to run PKI fixes manually if Caddy has startup issues:" -Type Info
+            Write-StatusMessage "You may need to run Caddy fixes manually if there are startup issues:" -Type Info
             Write-StatusMessage "  ssh azureuser@$($outputs.discoveryRelayPublicIp.value)" -Type Info
-            Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
+            Write-StatusMessage "  curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash" -Type Info
         }
         
         Write-StatusMessage "" -Type Info
@@ -286,7 +289,8 @@ try {
         Write-StatusMessage "Troubleshooting commands (if needed):" -Type Info
         Write-StatusMessage "- Check DNS: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash" -Type Info
         Write-StatusMessage "- Debug endpoints: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/debug-discovery-endpoints.sh | sudo bash" -Type Info
-        Write-StatusMessage "- Fix Caddy issues: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash" -Type Info
+        Write-StatusMessage "- Fix Caddy issues: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash" -Type Info
+        Write-StatusMessage "- Port binding fix only: curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-port-binding.sh | sudo bash" -Type Info
         Write-StatusMessage "" -Type Info
         Write-StatusMessage "Discovery Relay Configuration:" -Type Info
         Write-StatusMessage "- Domain: discovery.$Region.nostria.app" -Type Info

@@ -131,8 +131,11 @@ sudo journalctl -u caddy -f
 # Fix Caddy PKI/startup errors (if Caddy won't start)
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash
 
-# For persistent PKI errors, use the aggressive fix
+# For persistent PKI or port binding errors, use the aggressive fix
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-aggressive.sh | sudo bash
+
+# For port binding issues only (faster)
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-port-binding.sh | sudo bash
 
 # Check DNS propagation status
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash

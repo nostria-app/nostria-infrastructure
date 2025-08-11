@@ -380,6 +380,16 @@ fi
 
 echo "Using Caddy binary at: $CADDY_BINARY_PATH"
 
+# Set capability for Caddy to bind to privileged ports
+echo "Setting CAP_NET_BIND_SERVICE capability on Caddy binary..."
+if ! setcap 'cap_net_bind_service=+ep' "$CADDY_BINARY_PATH"; then
+    echo "WARNING: Failed to set capabilities on Caddy binary. Port binding may require root privileges."
+else
+    echo "✓ Caddy binary capabilities set successfully"
+    # Verify the capability
+    echo "Verifying capability: $(getcap "$CADDY_BINARY_PATH" || echo 'getcap failed')"
+fi
+
 # Create systemd service for Caddy (after binary path is determined)
 echo "Creating Caddy systemd service..."
 cat > /etc/systemd/system/caddy.service << EOF

@@ -128,6 +128,9 @@ sudo journalctl -u caddy -f
 
 **Troubleshooting HTTPS issues**:
 ```sh
+# Fix Caddy PKI/startup errors (if Caddy won't start)
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-pki-error.sh | sudo bash
+
 # Check DNS propagation status
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash
 

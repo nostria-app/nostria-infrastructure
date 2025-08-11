@@ -93,6 +93,22 @@ Use the deployment scripts to deploy the infrastructure:
 ./scripts/deploy-discovery-relay-vm.ps1 -Region "eu"
 ```
 
+### Deploying Discovery Relay VM
+
+After running the powershell script, the following must be done.
+
+```sh
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-https.sh | sudo bash
+```
+
+=== IMPORTANT: Enable HTTPS after DNS configuration ===
+This deployment uses HTTP to avoid certificate acquisition timeouts.
+After you configure DNS records for discovery.af.nostria.app pointing to this VM's public IP:
+
+1. Update DNS: Point discovery.af.nostria.app to VM-PUBLIC-IP
+2. Wait for DNS propagation (5-30 minutes)  
+3. Enable HTTPS by running: enable-https.sh
+
 ### VM Relay Deployment (NEW)
 
 For high-performance dedicated relay servers:

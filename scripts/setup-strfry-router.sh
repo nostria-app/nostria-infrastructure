@@ -26,9 +26,23 @@ mkdir -p /etc/strfry
 
 # Create the router configuration file
 echo "Creating strfry router configuration..."
-cat > /etc/strfry/strfry-router.conf << 'EOF'
+
+# Determine current region from hostname to avoid self-sync
+HOSTNAME=$(hostname)
+CURRENT_REGION=$(echo "$HOSTNAME" | sed -n 's/.*nostria-\([a-z][a-z]\)-discovery.*/\1/p')
+if [ -z "$CURRENT_REGION" ]; then
+    echo "Could not auto-detect region from hostname: $HOSTNAME"
+    echo "Please enter the current region (eu, us, af):"
+    read -r CURRENT_REGION
+fi
+
+echo "Detected current region: $CURRENT_REGION"
+echo "Configuring sync with other Discovery Relays..."
+
+cat > /etc/strfry/strfry-router.conf << EOF
 # strfry router configuration for syncing event kinds 3 and 10002
 # This configuration handles:
+# - Two-way sync with other Nostria Discovery Relays
 # - Two-way sync with purplepag.es
 # - One-way sync (down only) from relay.damus.io and relay.primal.net
 
@@ -39,7 +53,75 @@ connectionTimeout = 20
 logLevel = "info"
 
 # Stream configurations
-streams {
+streams {EOF
+
+# Add two-way sync with other Nostria Discovery Relays (excluding current region)
+if [ "$CURRENT_REGION" != "eu" ]; then
+    cat >> /etc/strfry/strfry-router.conf << 'EOF'
+    
+    # Two-way sync with Nostria EU Discovery Relay
+    nostria_eu {
+        dir = "both"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://discovery.eu.nostria.app/"
+        ]
+        
+        # Reconnect settings for reliability
+        reconnectDelaySeconds = 30
+    }EOF
+fi
+
+if [ "$CURRENT_REGION" != "us" ]; then
+    cat >> /etc/strfry/strfry-router.conf << 'EOF'
+    
+    # Two-way sync with Nostria US Discovery Relay
+    nostria_us {
+        dir = "both"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://discovery.us.nostria.app/"
+        ]
+        
+        # Reconnect settings for reliability
+        reconnectDelaySeconds = 30
+    }EOF
+fi
+
+if [ "$CURRENT_REGION" != "af" ]; then
+    cat >> /etc/strfry/strfry-router.conf << 'EOF'
+    
+    # Two-way sync with Nostria AF Discovery Relay
+    nostria_af {
+        dir = "both"
+        
+        # Filter to only sync event kinds 3 and 10002
+        filter = {
+            "kinds": [3, 10002]
+        }
+        
+        urls = [
+            "wss://discovery.af.nostria.app/"
+        ]
+        
+        # Reconnect settings for reliability
+        reconnectDelaySeconds = 30
+    }EOF
+fi
+
+# Add the rest of the configuration
+cat >> /etc/strfry/strfry-router.conf << 'EOF'
+    
     # Two-way sync with purplepag.es
     # Sync contact lists (kind 3) and relay lists (kind 10002) bidirectionally
     purplepages {
@@ -202,6 +284,15 @@ cat > /usr/local/bin/strfry-router-monitor.sh << 'EOF'
 echo "=== Strfry Router Sync Monitor ==="
 echo "Timestamp: $(date)"
 
+# Detect current region
+HOSTNAME=$(hostname)
+CURRENT_REGION=$(echo "$HOSTNAME" | sed -n 's/.*nostria-\([a-z][a-z]\)-discovery.*/\1/p')
+if [ -n "$CURRENT_REGION" ]; then
+    echo "Current region: $CURRENT_REGION"
+else
+    echo "Region: Unknown (hostname: $HOSTNAME)"
+fi
+
 # Check if router service is running
 if systemctl is-active --quiet strfry-router; then
     echo "✓ Router service is running"
@@ -219,9 +310,43 @@ strfry scan '{"kinds":[3]}' 2>/dev/null | wc -l || echo "Error scanning kind 3 e
 echo "Relay lists (kind 10002):"
 strfry scan '{"kinds":[10002]}' 2>/dev/null | wc -l || echo "Error scanning kind 10002 events"
 
+# Test connectivity to other Discovery Relays
+echo -e "\n=== Discovery Relay Connectivity ==="
+if [ "$CURRENT_REGION" != "eu" ]; then
+    if curl -s --connect-timeout 5 https://discovery.eu.nostria.app/health >/dev/null 2>&1; then
+        echo "✓ discovery.eu.nostria.app is reachable"
+    else
+        echo "✗ discovery.eu.nostria.app is not reachable"
+    fi
+fi
+
+if [ "$CURRENT_REGION" != "us" ]; then
+    if curl -s --connect-timeout 5 https://discovery.us.nostria.app/health >/dev/null 2>&1; then
+        echo "✓ discovery.us.nostria.app is reachable"
+    else
+        echo "✗ discovery.us.nostria.app is not reachable"
+    fi
+fi
+
+if [ "$CURRENT_REGION" != "af" ]; then
+    if curl -s --connect-timeout 5 https://discovery.af.nostria.app/health >/dev/null 2>&1; then
+        echo "✓ discovery.af.nostria.app is reachable"
+    else
+        echo "✗ discovery.af.nostria.app is not reachable"
+    fi
+fi
+
+# Test external relay connectivity
+echo -e "\n=== External Relay Connectivity ==="
+if curl -s --connect-timeout 5 https://purplepag.es/health >/dev/null 2>&1 || curl -s --connect-timeout 5 https://purplepag.es/ >/dev/null 2>&1; then
+    echo "✓ purplepag.es is reachable"
+else
+    echo "✗ purplepag.es is not reachable"
+fi
+
 # Show recent router logs
 echo -e "\n=== Recent Router Logs ==="
-journalctl -u strfry-router --no-pager -n 10 --since "5 minutes ago" || true
+journalctl -u strfry-router --no-pager -n 15 --since "10 minutes ago" || true
 
 # Show network connections
 echo -e "\n=== Active Network Connections ==="
@@ -240,10 +365,22 @@ cat > /etc/cron.d/strfry-router-monitor << 'EOF'
 EOF
 
 echo -e "\n=== Strfry Router Setup Complete ==="
-echo "Configuration:"
-echo "  - Two-way sync with: wss://purplepag.es/"
-echo "  - One-way sync from: wss://relay.damus.io/"
-echo "  - One-way sync from: wss://relay.primal.net/"
+echo "Configuration for region: $CURRENT_REGION"
+echo "Two-way sync configured with:"
+if [ "$CURRENT_REGION" != "eu" ]; then
+    echo "  - discovery.eu.nostria.app (Nostria EU Discovery Relay)"
+fi
+if [ "$CURRENT_REGION" != "us" ]; then
+    echo "  - discovery.us.nostria.app (Nostria US Discovery Relay)"
+fi
+if [ "$CURRENT_REGION" != "af" ]; then
+    echo "  - discovery.af.nostria.app (Nostria AF Discovery Relay)"
+fi
+echo "  - purplepag.es (External relay)"
+echo ""
+echo "One-way sync (download only) from:"
+echo "  - relay.damus.io"
+echo "  - relay.primal.net"
 echo "  - Event kinds: 3 (contact lists), 10002 (relay lists)"
 echo ""
 echo "Services:"

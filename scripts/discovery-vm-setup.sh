@@ -41,17 +41,54 @@ EOF
     
     # Find the data disk (should be the first unpartitioned disk that's not the OS disk)
     # Look for a disk that doesn't have any partitions and isn't the root disk
-    ROOT_DISK=$(df / | tail -1 | awk '{print $1}' | sed 's/[0-9]*$//' | sed 's|/dev/||')
-    echo "Root disk identified as: $ROOT_DISK"
+    ROOT_DEVICE=$(df / | tail -1 | awk '{print $1}')
+    ROOT_DISK=$(echo "$ROOT_DEVICE" | sed 's/[0-9]*$//' | sed 's|/dev/||')
+    echo "Root device: $ROOT_DEVICE, Root disk identified as: $ROOT_DISK"
     
-    # Find data disk by looking for unpartitioned disks
-    DATA_DISK=$(lsblk -dn -o NAME,TYPE | grep "disk" | grep -v "$ROOT_DISK" | head -n1 | awk '{print $1}')
+    # Find data disk by looking for disks that are not the root disk
+    # Prefer larger disks and avoid the OS disk and temp disk
+    echo "Looking for data disk (excluding root disk: $ROOT_DISK)..."
+    
+    # Get all disks except the root disk, sorted by size (largest first)
+    AVAILABLE_DISKS=$(lsblk -dn -o NAME,SIZE,TYPE | grep "disk" | grep -v "$ROOT_DISK" | sort -k2 -hr)
+    echo "Available non-root disks (sorted by size):"
+    echo "$AVAILABLE_DISKS"
+    
+    # Select the largest available disk as data disk (should be the 64GB disk)
+    DATA_DISK=$(echo "$AVAILABLE_DISKS" | head -n1 | awk '{print $1}')
+    
+    if [ -n "$DATA_DISK" ]; then
+        DATA_DISK_SIZE=$(echo "$AVAILABLE_DISKS" | head -n1 | awk '{print $2}')
+        echo "Selected data disk: /dev/$DATA_DISK (size: $DATA_DISK_SIZE)"
+    else
+        echo "No suitable data disk found"
+    fi
     
     if [ -n "$DATA_DISK" ]; then
         echo "Found data disk: /dev/$DATA_DISK"
         
+        # Safety check: ensure we're not about to mount the root disk
+        if [ "$DATA_DISK" = "$ROOT_DISK" ]; then
+            echo "ERROR: Selected data disk is the same as root disk. Aborting to prevent data loss."
+            exit 1
+        fi
+        
         # Always create the mount point directory first
         mkdir -p /var/lib/strfry
+        
+        # Verify the mount point is empty or only contains expected directories
+        if [ "$(ls -A /var/lib/strfry 2>/dev/null | wc -l)" -gt 0 ]; then
+            echo "Mount point /var/lib/strfry is not empty. Contents:"
+            ls -la /var/lib/strfry/
+            # If it contains system directories like 'bin', 'etc', etc., something is wrong
+            if ls /var/lib/strfry/ | grep -E '^(bin|etc|usr|var|root|home)$' > /dev/null; then
+                echo "ERROR: Mount point contains system directories. This suggests a previous mount error."
+                echo "Cleaning up and recreating mount point..."
+                umount /var/lib/strfry 2>/dev/null || true
+                rm -rf /var/lib/strfry
+                mkdir -p /var/lib/strfry
+            fi
+        fi
         
         # Check if the disk already has partitions
         if [ $(lsblk -n /dev/$DATA_DISK | wc -l) -gt 1 ]; then

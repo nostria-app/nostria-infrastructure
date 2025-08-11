@@ -50,17 +50,21 @@ EOF
     if [ -n "$DATA_DISK" ]; then
         echo "Found data disk: /dev/$DATA_DISK"
         
+        # Always create the mount point directory first
+        mkdir -p /var/lib/strfry
+        
         # Check if the disk already has partitions
         if [ $(lsblk -n /dev/$DATA_DISK | wc -l) -gt 1 ]; then
             echo "Data disk already has partitions, checking if mounted..."
             PARTITION="${DATA_DISK}1"
-            if mount | grep -q "/dev/$PARTITION"; then
-                echo "Data disk partition already mounted"
+            if mount | grep -q "/dev/$PARTITION on /var/lib/strfry"; then
+                echo "Data disk partition already mounted at /var/lib/strfry"
             else
                 echo "Mounting existing data disk partition..."
+                # Unmount if mounted elsewhere
+                umount /dev/$PARTITION 2>/dev/null || true
                 mount /dev/$PARTITION /var/lib/strfry || {
                     echo "Failed to mount existing partition, will reformat..."
-                    umount /var/lib/strfry 2>/dev/null || true
                     # Format and mount
                     mkfs.ext4 -F /dev/$PARTITION
                     mount /dev/$PARTITION /var/lib/strfry
@@ -77,9 +81,6 @@ EOF
             
             # Format the partition with ext4
             mkfs.ext4 -F /dev/${DATA_DISK}1
-            
-            # Create mount point
-            mkdir -p /var/lib/strfry
             
             # Mount the disk
             mount /dev/${DATA_DISK}1 /var/lib/strfry

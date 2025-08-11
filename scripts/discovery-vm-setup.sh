@@ -382,7 +382,9 @@ User=caddy
 Group=caddy
 ExecStart=$CADDY_BINARY_PATH run --environ --config /etc/caddy/Caddyfile
 ExecReload=$CADDY_BINARY_PATH reload --config /etc/caddy/Caddyfile --force
+TimeoutStartSec=60s
 TimeoutStopSec=5s
+TimeoutReloadSec=30s
 LimitNOFILE=1048576
 LimitNPROC=1048576
 PrivateTmp=true
@@ -747,8 +749,8 @@ cat > /etc/caddy/Caddyfile << EOF
 	# Enable admin API on localhost only
 	admin localhost:2019
 	
-	# Disable automatic HTTPS for internal testing
-	# auto_https off
+	# Disable automatic HTTPS for initial deployment to prevent hanging
+	auto_https off
 	
 	# Set storage location for certificates (writable by caddy user)
 	storage file_system {
@@ -762,18 +764,10 @@ cat > /etc/caddy/Caddyfile << EOF
 	}
 }
 
-# Main site configuration for $DISCOVERY_DOMAIN
-$DISCOVERY_DOMAIN {
-	# Enable automatic HTTPS
-	tls {
-		protocols tls1.2 tls1.3
-	}
-	
-	# Security headers
+# Main site configuration for $DISCOVERY_DOMAIN (HTTP for initial deployment)
+$DISCOVERY_DOMAIN:80 {
+	# Security headers (no HSTS for HTTP)
 	header {
-		# Enable HSTS
-		Strict-Transport-Security max-age=31536000;
-		
 		# Prevent clickjacking
 		X-Frame-Options DENY
 		
@@ -860,12 +854,6 @@ if command -v "$CADDY_BINARY_PATH" &> /dev/null; then
     echo "Caddyfile validation passed"
 fi
 
-# Always reload Caddy configuration after updating
-if systemctl is-active --quiet caddy; then
-    echo "Reloading Caddy configuration..."
-    systemctl reload caddy || systemctl restart caddy
-fi
-
 # Enable and start services
 echo "Enabling and starting services..."
 systemctl daemon-reload
@@ -885,7 +873,39 @@ if ! systemctl is-active --quiet strfry; then
 fi
 
 echo "Starting caddy service..."
-systemctl start caddy
+# Stop any existing Caddy process first to avoid conflicts
+systemctl stop caddy 2>/dev/null || true
+sleep 2
+
+# Start Caddy with timeout protection
+timeout 60 systemctl start caddy &
+CADDY_START_PID=$!
+
+# Wait for Caddy to start with timeout
+echo "Waiting for Caddy to start (timeout: 60 seconds)..."
+CADDY_STARTED=false
+for i in {1..60}; do
+    if systemctl is-active --quiet caddy; then
+        CADDY_STARTED=true
+        echo "Caddy started successfully after $i seconds"
+        break
+    fi
+    sleep 1
+done
+
+# Kill the start command if it's still running
+kill $CADDY_START_PID 2>/dev/null || true
+
+if [ "$CADDY_STARTED" = "false" ]; then
+    echo "ERROR: Caddy failed to start within 60 seconds"
+    echo "Caddy service status:"
+    systemctl status caddy --no-pager -l || true
+    echo "Recent Caddy logs:"
+    journalctl -u caddy --no-pager -n 20 || true
+    echo "Caddyfile contents:"
+    cat /etc/caddy/Caddyfile
+    exit 1
+fi
 
 # Configure system limits for strfry
 echo "Configuring system limits..."
@@ -1022,12 +1042,25 @@ else
     journalctl -u caddy --no-pager -n 20 || true
 fi
 
-echo "Setup completed! The discovery relay should be accessible at https://$DISCOVERY_DOMAIN"
-echo "You can check the relay info at: https://$DISCOVERY_DOMAIN (WebSocket connection for nostr)"
+echo "Setup completed! The discovery relay is accessible at http://$DISCOVERY_DOMAIN"
+echo "You can check the relay info at: http://$DISCOVERY_DOMAIN (WebSocket connection for nostr)"
 echo "Internal monitoring available at: http://localhost:8080/health"
 
-# Optional: Setup strfry router for syncing with other relays
 echo ""
+echo "=== IMPORTANT: Enable HTTPS after DNS configuration ==="
+echo "This deployment uses HTTP to avoid certificate acquisition timeouts."
+echo "After you configure DNS records for $DISCOVERY_DOMAIN pointing to this VM's public IP:"
+echo ""
+echo "1. Update DNS: Point $DISCOVERY_DOMAIN to $(curl -s ifconfig.me 2>/dev/null || echo 'VM-PUBLIC-IP')"
+echo "2. Wait for DNS propagation (5-30 minutes)"
+echo "3. Enable HTTPS by running:"
+echo "   curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-https.sh | sudo bash"
+echo ""
+echo "Or manually on the VM:"
+echo "   sudo /path/to/enable-https.sh"
+echo ""
+
+# Optional: Setup strfry router for syncing with other relays
 echo "=== Optional: Strfry Router Setup ==="
 echo "To enable syncing event kinds 3 and 10002 with other relays, run:"
 echo "  sudo /var/log/discovery-vm-setup.log && curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/setup-strfry-router.sh | sudo bash"

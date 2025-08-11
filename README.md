@@ -137,6 +137,9 @@ curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/mai
 # For port binding issues only (faster)
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-port-binding.sh | sudo bash
 
+# Ultimate diagnostic and fix (comprehensive troubleshooting)
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-caddy-ultimate.sh | sudo bash
+
 # Check DNS propagation status
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/check-dns-propagation.sh | sudo bash
 

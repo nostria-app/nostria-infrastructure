@@ -368,8 +368,21 @@ if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/caddy" ]; then
     # Ensure proper permissions for certificate storage
     chmod 700 /var/lib/caddy/certificates
 
-    # Create systemd service for Caddy
-    cat > /etc/systemd/system/caddy.service << EOF
+else
+    echo "Skipping Caddy installation (already exists or rerun detected)"
+fi
+
+# Determine Caddy binary path (for both installation methods)
+CADDY_BINARY_PATH="/usr/local/bin/caddy"
+if [ "${CADDY_INSTALLED_VIA_APT:-false}" = "true" ] || [ -f "/usr/bin/caddy" ]; then
+    CADDY_BINARY_PATH="/usr/bin/caddy"
+fi
+
+echo "Using Caddy binary at: $CADDY_BINARY_PATH"
+
+# Create systemd service for Caddy (after binary path is determined)
+echo "Creating Caddy systemd service..."
+cat > /etc/systemd/system/caddy.service << EOF
 [Unit]
 Description=Caddy
 Documentation=https://caddyserver.com/docs/
@@ -394,17 +407,6 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 [Install]
 WantedBy=multi-user.target
 EOF
-else
-    echo "Skipping Caddy installation (already exists or rerun detected)"
-fi
-
-# Determine Caddy binary path (for both installation methods)
-CADDY_BINARY_PATH="/usr/local/bin/caddy"
-if [ "${CADDY_INSTALLED_VIA_APT:-false}" = "true" ] || [ -f "/usr/bin/caddy" ]; then
-    CADDY_BINARY_PATH="/usr/bin/caddy"
-fi
-
-echo "Using Caddy binary at: $CADDY_BINARY_PATH"
 
 # Create strfry user
 if [ "$RERUN" = "false" ]; then

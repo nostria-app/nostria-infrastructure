@@ -93,10 +93,8 @@ EOF
         sed -i '\|/var/lib/strfry|d' /etc/fstab
         echo "UUID=$DATA_UUID /var/lib/strfry ext4 defaults,noatime 0 2" >> /etc/fstab
         
-        # Set proper ownership and permissions on the mounted data disk
-        echo "Setting ownership and permissions on data disk..."
-        chown -R strfry:strfry /var/lib/strfry
-        chmod -R 755 /var/lib/strfry
+        # Note: Ownership will be set later after the strfry user is created
+        echo "Data disk setup complete (ownership will be set after user creation)"
         
         echo "Data disk mounted successfully at /var/lib/strfry"
         df -h /var/lib/strfry
@@ -190,7 +188,12 @@ if [ "$RERUN" = "false" ]; then
     mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry
     mkdir -p /var/log/strfry
+    
+    # Set proper ownership and permissions on all strfry directories (including mounted data disk)
+    echo "Setting ownership and permissions on strfry directories..."
     chown -R strfry:strfry /var/lib/strfry /var/log/strfry
+    chmod -R 755 /var/lib/strfry
+    chmod -R 755 /var/log/strfry
 else
     echo "Skipping strfry user creation (rerun detected)"
     # Ensure directories exist and have proper ownership

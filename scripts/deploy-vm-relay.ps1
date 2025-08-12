@@ -4,7 +4,7 @@ param (
     [string]$ResourceGroupName = "",
     
     [Parameter(Mandatory=$false)]
-    [string]$Location = "westeurope",
+    [string]$Location = "",
     
     [Parameter(Mandatory=$false)]
     [string]$Region = "eu",
@@ -21,6 +21,20 @@ param (
     [Parameter(Mandatory=$false)]
     [switch]$WhatIf
 )
+
+# Region to Azure location mapping
+$regionLocationMapping = @{
+    "eu" = "westeurope"
+    "us" = "centralus"
+    "af" = "southafricanorth"
+    "as" = "southeastasia"
+    "sa" = "brazilsouth"
+    "au" = "australiaeast"
+    "jp" = "japaneast"
+    "cn" = "chinanorth"
+    "in" = "centralindia"
+    "me" = "uaenorth"
+}
 
 function Write-StatusMessage {
     param (
@@ -44,6 +58,20 @@ $repoRoot = Split-Path -Parent $scriptDir
 # Set default resource group name if not provided
 if ([string]::IsNullOrEmpty($ResourceGroupName)) {
     $ResourceGroupName = "nostria-$Region-relays"
+}
+
+# Set Azure location based on region if not explicitly provided
+if ([string]::IsNullOrEmpty($Location)) {
+    if ($regionLocationMapping.ContainsKey($Region)) {
+        $Location = $regionLocationMapping[$Region]
+        Write-StatusMessage "Auto-mapped region '$Region' to Azure location '$Location'" -Type Info
+    } else {
+        Write-StatusMessage "Unknown region '$Region'. Available regions: $($regionLocationMapping.Keys -join ', ')" -Type Error
+        Write-StatusMessage "Please specify a valid region or provide an explicit -Location parameter" -Type Error
+        exit 1
+    }
+} else {
+    Write-StatusMessage "Using explicitly provided location: $Location" -Type Info
 }
 
 Write-StatusMessage "Starting VM Relay deployment for region: $Region" -Type Info

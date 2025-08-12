@@ -206,6 +206,38 @@ For high-performance dedicated relay servers:
 - DNS configuration for each relay domain
 - Azure subscription with VM deployment permissions
 
+**Post-deployment setup:**
+
+After VM deployment completes:
+
+1. **Update DNS**: Point the relay domain (e.g., `ribo.us.nostria.app`) to your VM's public IP
+2. **Wait for DNS propagation**: 5-30 minutes typically
+3. **Enable HTTPS**: SSH to the VM and run:
+
+```bash
+# Enable HTTPS for VM relay
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-vm-relay-https.sh | sudo bash
+```
+
+**Troubleshooting VM Relay HTTPS:**
+
+```bash
+# Check relay status
+/usr/local/bin/strfry-health-check.sh
+
+# Test HTTPS connectivity
+curl -v https://ribo.us.nostria.app/health
+
+# Monitor certificate acquisition
+sudo journalctl -u caddy -f
+
+# Manual Caddy reload if needed
+sudo systemctl reload caddy
+
+# Test WebSocket connection
+wscat -c wss://ribo.us.nostria.app
+```
+
 Parameters:
 - `ResourceGroupName`: Name of the resource group (default: "nostria")
 - `Location`: Azure region (default: "westeurope")

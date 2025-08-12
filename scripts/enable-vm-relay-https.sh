@@ -31,9 +31,21 @@ echo "Configuring HTTPS for domain: $RELAY_DOMAIN"
 
 # Check if Caddy is running
 if ! systemctl is-active caddy &>/dev/null; then
-    echo "ERROR: Caddy service is not running"
-    echo "Please ensure Caddy is installed and running first"
-    exit 1
+    echo "WARNING: Caddy service is not running. Attempting to start it..."
+    if sudo systemctl start caddy; then
+        echo "✅ Caddy service started successfully"
+        sleep 3  # Give it a moment to fully start
+    else
+        echo "❌ Failed to start Caddy service. Checking status..."
+        sudo systemctl status caddy --no-pager -l
+        echo ""
+        echo "Troubleshooting steps:"
+        echo "1. Check if Caddy is installed: which caddy"
+        echo "2. Check Caddy configuration: sudo caddy validate --config /etc/caddy/Caddyfile"
+        echo "3. Check system logs: sudo journalctl -u caddy -n 20"
+        echo "4. Try manual start: sudo systemctl start caddy"
+        exit 1
+    fi
 fi
 
 # Check if strfry is running

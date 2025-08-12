@@ -225,6 +225,31 @@ After VM deployment completes:
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-vm-relay-https.sh | sudo bash
 ```
 
+**If Caddy service is not running:**
+
+If you get "ERROR: Caddy service is not running", try these steps:
+
+```bash
+# Check if services are running
+sudo systemctl status caddy
+sudo systemctl status strfry
+
+# Start services if needed
+sudo systemctl start caddy
+sudo systemctl start strfry
+
+# Enable services to start on boot
+sudo systemctl enable caddy
+sudo systemctl enable strfry
+
+# Check service logs for errors
+sudo journalctl -u caddy -n 20
+sudo journalctl -u strfry -n 20
+
+# Then retry the HTTPS script
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-vm-relay-https.sh | sudo bash
+```
+
 **Troubleshooting VM Relay HTTPS:**
 
 ```bash

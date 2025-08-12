@@ -6,7 +6,6 @@ This repository contains infrastructure as code (IaC) for the Nostria Azure envi
 
 - **Linux App Service Plan (B1)**: Hosts all container applications and function apps
 - **Container Apps**:
-  - `discovery.nostria.app`: Discovery service (single instance)
   - `relay[N].nostria.app`: Relay services (multiple instances as needed)
   - `media[N].nostria.app`: Media services (multiple instances as needed)
 - **Function Apps**:
@@ -46,14 +45,6 @@ Set-AzContext -SubscriptionId "<your-subscription-id>"
 ```
 
 ## Deployment
-
-### Update Discovery Relays
-
-When a new image of the Discovery Relay is built using the separate repo, run this command to update the web app:
-
-```powershell
- ./scripts/update-web-app.ps1 -WebAppNames @("nostria-discovery-eu") -ResourceGroup "nostria-eu" -ContainerImage "ghcr.io/nostria-app/discovery-relay:9e75597ed5c7ad4e97f5278b35f325ded9465b43"
-```
 
 ### Manage VM Relays
 
@@ -236,8 +227,9 @@ To add more relay or media instances, simply update the count parameters:
 ## Backup and Restore
 
 ```powershell
-./scripts/backup.ps1 -WebAppName "nostria-discovery"
-./scripts/restore.ps1 -WebAppName "nostria-discovery"
+# Example: Backup and restore a relay app
+./scripts/backup.ps1 -WebAppName "nostria-ribo-eu"
+./scripts/restore.ps1 -WebAppName "nostria-ribo-eu"
 ```
 
 ### Backing Up a Storage Account
@@ -267,9 +259,7 @@ Make sure that the following environment variables are set in the container app:
 
 ## GitHub Actions Workflows
 
-This repository includes GitHub Actions workflows for automating the deployment of containers:
-
-- `deploy-discovery.yml`: Builds and deploys the discovery container app when changes are pushed to the `discovery/` directory.
+This repository includes GitHub Actions workflows for automating the deployment of containers.
 
 ### Setting up GitHub Actions
 

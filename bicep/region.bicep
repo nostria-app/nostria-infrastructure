@@ -49,81 +49,7 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
   }
 }
 
-// Deploy Storage Account for Discovery App
-module discoveryStorageAccount 'modules/storage-account.bicep' = {
-  name: '${baseAppName}-${currentRegion}-discovery-storage-deployment'
-  params: {
-    name: 'discovery${currentRegion}st'
-    location: location
-  }
-}
 
-// Deploy Discovery App for the current region
-module discoveryApp 'modules/container-app.bicep' = {
-  name: '${baseAppName}-${currentRegion}-discovery-app-deployment'
-  params: {
-    name: 'nostria-${currentRegion}-discovery'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'discovery.${currentRegion}.nostria.app'
-    containerImage: 'ghcr.io/nostria-app/discovery-relay:latest'
-    storageAccountName: discoveryStorageAccount.outputs.name
-    appSettings: [
-      {
-        name: 'Storage__Provider'
-        value: 'AzureBlob'
-      }
-      {
-        name: 'AzureBlob__UseManagedIdentity'
-        value: true
-      }
-      {
-        name: 'AzureBlob__AccountName'
-        value: discoveryStorageAccount.outputs.name
-      }
-      {
-        name: 'Relay__Contact'
-        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
-      }
-      {
-        name: 'Relay__PostingPolicy'
-        value: 'https://discovery.${currentRegion}.nostria.com/posting-policy'
-      }
-      {
-        name: 'Relay__PrivacyPolicy'
-        value: 'https://discovery.${currentRegion}.nostria.com/privacy-policy'
-      }
-      {
-        name: 'Relay__Region'
-        value: currentRegion
-      }
-    ]
-  }
-  dependsOn: [discoveryStorageAccount]
-}
-
-// Assign Storage Blob Data Contributor role to discovery app
-module discoveryStorageRoleAssignment 'modules/role-assignment.bicep' = {
-  name: '${baseAppName}-${currentRegion}-discovery-role-assignment'
-  params: {
-    storageAccountName: discoveryStorageAccount.outputs.name
-    principalId: discoveryApp.outputs.webAppPrincipalId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-  }
-  dependsOn: [discoveryApp, discoveryStorageAccount]
-}
-
-// Certificate for Discovery App
-module discoveryAppCert 'modules/container-app-certificate.bicep' = {
-  name: '${baseAppName}-${currentRegion}-discovery-app-cert-deployment'
-  params: {
-    name: 'nostria-${currentRegion}-discovery'
-    location: location
-    appServicePlanId: appServicePlan.outputs.id
-    customDomainName: 'discovery.${currentRegion}.nostria.app'
-  }
-  dependsOn: [discoveryApp]
-}
 
 // Deploy Relay Apps for the current region
 module relayStorageAccounts 'modules/storage-account.bicep' = [
@@ -283,10 +209,6 @@ module proxyFunctionApp 'modules/function-app.bicep' = {
         name: 'RELAY_ENDPOINTS'
         value: join(relayEndpoints, ',')
       }
-      {
-        name: 'DISCOVERY_ENDPOINT'
-        value: 'https://discovery.${currentRegion}.nostria.app'
-      }
     ]
   }
 }
@@ -318,9 +240,6 @@ module proxyFunctionAppCert 'modules/function-app-certificate.bicep' = {
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
-
-// Discovery app URL for the current region
-output discoveryAppUrl string = 'https://discovery.${currentRegion}.nostria.app'
 
 // Relay URLs for the current region
 output relayAppUrls array = [

@@ -161,6 +161,16 @@ After you configure DNS records for discovery.af.nostria.app pointing to this VM
 2. Wait for DNS propagation (5-30 minutes)  
 3. Enable HTTPS by running: enable-https.sh
 
+## Strfry Router Setup
+
+After setup, router and sync should be configured.
+
+```sh
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/setup-strfry-router-complete.sh | sudo bash
+
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/strfry-initial-full-sync.sh | sudo bash
+```
+
 ### VM Relay Deployment (NEW)
 
 For high-performance dedicated relay servers:

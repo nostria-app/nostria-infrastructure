@@ -3,24 +3,18 @@ param currentRegion string
 
 param location string = resourceGroup().location
 param baseAppName string = 'nostria'
-param defaultRelayCount int = 1
 param defaultMediaCount int = 1
 
-@description('Object defining the number of relay servers per region. Example: {"eu": 2, "af": 1}')
-param relayCountPerRegion object = {}
 @description('Object defining the number of media servers per region. Example: {"eu": 2, "af": 1}')
 param mediaCountPerRegion object = {}
 
 @description('Object defining the app service plan SKUs per region. Example: {"eu": {"name": "B3", "tier": "Basic"}, "af": {"name": "B2", "tier": "Basic"}}')
 param appServicePlanSkus object = {}
 
-@description('Array of relay server names')
-param relayNames array
 @description('Array of media server names')
 param mediaNames array
 
-// Read the relay configuration file
-var strfryConfigContent = loadTextContent('../config/relay/strfry.conf')
+// Read the media configuration file
 var mediaConfigContent = loadTextContent('../config/media/config.yml')
 
 module regionConfig 'modules/region-mapping.bicep' = {
@@ -30,7 +24,6 @@ module regionConfig 'modules/region-mapping.bicep' = {
   }
 }
 
-var relayCount = contains(relayCountPerRegion, currentRegion) ? relayCountPerRegion[currentRegion] : defaultRelayCount
 var mediaCount = contains(mediaCountPerRegion, currentRegion) ? mediaCountPerRegion[currentRegion] : defaultMediaCount
 
 // Choose appropriate SKU based on region or default to B1 if region not specified
@@ -48,72 +41,6 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
     sku: selectedSku
   }
 }
-
-
-
-// Deploy Relay Apps for the current region
-module relayStorageAccounts 'modules/storage-account.bicep' = [
-  for i in range(0, relayCount): {
-    name: '${baseAppName}-${currentRegion}-relay-${toLower(relayNames[i])}-storage-deployment'
-    params: {
-      name: '${toLower(replace(relayNames[i], '-', ''))}${currentRegion}st'
-      location: location
-    }
-  }
-]
-
-module relayApps 'modules/container-app.bicep' = [
-  for i in range(0, relayCount): {
-    name: '${baseAppName}-${currentRegion}-relay-${toLower(relayNames[i])}-deployment'
-    params: {
-      name: 'nostria-${currentRegion}-${toLower(relayNames[i])}'
-      location: location
-      appServicePlanId: appServicePlan.outputs.id
-      // containerImage: 'ghcr.io/nostria-app/nostria-relay:latest'
-      containerImage: 'ghcr.io/hoytech/strfry:latest'
-      customDomainName: '${toLower(relayNames[i])}.${currentRegion}.nostria.app'
-      storageAccountName: relayStorageAccounts[i].outputs.name
-      appSettings: [
-        {
-          name: 'STRFRY_CONFIG'
-          value: '/app/data/strfry.conf'
-        }
-      ]
-      // startupCommand: relayStartupCommand
-      configContent: strfryConfigContent
-      configFileName: 'strfry.conf'
-      startupCommand: 'relay --config=/app/data/strfry.conf'
-      // startupCommand: '--config=/app/data/strfry.conf'
-    }
-    dependsOn: [relayStorageAccounts]
-  }
-]
-
-// Assign Storage File Data SMB Share Contributor role to relay apps
-module relayStorageRoleAssignments 'modules/role-assignment.bicep' = [
-  for i in range(0, relayCount): {
-    name: '${baseAppName}-${currentRegion}-relay-${toLower(relayNames[i])}-role-assignment'
-    params: {
-      storageAccountName: relayStorageAccounts[i].outputs.name
-      principalId: relayApps[i].outputs.webAppPrincipalId
-    }
-    dependsOn: [relayApps, relayStorageAccounts]
-  }
-]
-
-// Certificates for Relay Apps
-module relayAppsCerts 'modules/container-app-certificate.bicep' = [
-  for i in range(0, relayCount): {
-    name: '${baseAppName}-${currentRegion}-relay-${toLower(relayNames[i])}-cert-deployment'
-    params: {
-      name: 'nostria-${currentRegion}-${toLower(relayNames[i])}'
-      location: location
-      appServicePlanId: appServicePlan.outputs.id
-      customDomainName: '${toLower(relayNames[i])}.${currentRegion}.nostria.app'
-    }
-    dependsOn: [relayApps]
-  }
-]
 
 // Media Apps (Multiple instances based on mediaCount) using docker-compose
 module mediaStorageAccounts 'modules/storage-account.bicep' = [
@@ -179,9 +106,6 @@ module mediaAppsCerts 'modules/container-app-certificate.bicep' = [
   }
 ]
 
-// Create array of relay endpoints for proxy configuration
-var relayEndpoints = [for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.${currentRegion}.nostria.app']
-
 // Deploy Storage Account for Proxy Function App
 module proxyStorageAccount 'modules/storage-account.bicep' = {
   name: '${baseAppName}-${currentRegion}-proxy-storage-deployment'
@@ -207,7 +131,7 @@ module proxyFunctionApp 'modules/function-app.bicep' = {
       }
       {
         name: 'RELAY_ENDPOINTS'
-        value: join(relayEndpoints, ',')
+        value: 'https://ribo.${currentRegion}.nostria.app,https://rilo.${currentRegion}.nostria.app'
       }
     ]
   }
@@ -240,11 +164,6 @@ module proxyFunctionAppCert 'modules/function-app-certificate.bicep' = {
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name
-
-// Relay URLs for the current region
-output relayAppUrls array = [
-  for i in range(0, relayCount): 'https://${toLower(relayNames[i])}.${currentRegion}.nostria.app'
-]
 
 // Media URLs for the current region
 output mediaAppUrls array = [

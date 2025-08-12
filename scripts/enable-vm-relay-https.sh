@@ -80,6 +80,7 @@ $RELAY_DOMAIN {
     @nip11 {
         header Accept application/nostr+json
     }
+    header @nip11 Content-Type application/json
     respond @nip11 200 {
         body \`{
             "name": "$RELAY_DOMAIN",
@@ -90,7 +91,6 @@ $RELAY_DOMAIN {
             "software": "strfry",
             "version": "0.9.6"
         }\`
-        header Content-Type application/json
     }
 }
 

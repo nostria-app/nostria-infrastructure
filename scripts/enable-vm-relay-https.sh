@@ -44,8 +44,12 @@ if ! systemctl is-active strfry &>/dev/null; then
 fi
 
 # Backup current Caddyfile
-echo "Backing up current Caddyfile..."
-sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.backup.$(date +%Y%m%d-%H%M%S)
+if [ -f /etc/caddy/Caddyfile ]; then
+    echo "Backing up current Caddyfile..."
+    sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.backup.$(date +%Y%m%d-%H%M%S)
+else
+    echo "No existing Caddyfile found. Creating new configuration..."
+fi
 
 # Create new Caddyfile with HTTPS configuration
 echo "Creating new Caddyfile with HTTPS configuration..."

@@ -11,7 +11,6 @@ echo "Date: $(date)"
 # Function to get the relay domain based on VM hostname
 get_relay_domain() {
     local hostname=$(hostname)
-    echo "Current hostname: $hostname"
     
     # Extract region and relay name from hostname pattern: nostria-[region]-[relay]-vm
     if [[ $hostname =~ nostria-([a-z]+)-([a-z]+)-vm ]]; then
@@ -19,13 +18,14 @@ get_relay_domain() {
         local relay="${BASH_REMATCH[2]}"
         echo "$relay.$region.nostria.app"
     else
-        echo "ERROR: Cannot determine relay domain from hostname: $hostname"
-        echo "Expected format: nostria-[region]-[relay]-vm"
+        echo "ERROR: Cannot determine relay domain from hostname: $hostname" >&2
+        echo "Expected format: nostria-[region]-[relay]-vm" >&2
         exit 1
     fi
 }
 
 # Get the relay domain
+echo "Current hostname: $(hostname)"
 RELAY_DOMAIN=$(get_relay_domain)
 echo "Configuring HTTPS for domain: $RELAY_DOMAIN"
 

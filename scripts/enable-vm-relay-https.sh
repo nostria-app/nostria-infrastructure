@@ -82,15 +82,15 @@ $RELAY_DOMAIN {
     }
     header @nip11 Content-Type application/json
     respond @nip11 200 {
-        body \`{
-            "name": "$RELAY_DOMAIN",
-            "description": "High-performance VM-based Nostr relay powered by strfry",
-            "pubkey": "",
-            "contact": "admin@nostria.app",
-            "supported_nips": [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40],
-            "software": "strfry",
-            "version": "0.9.6"
-        }\`
+        body "{
+            \"name\": \"$RELAY_DOMAIN\",
+            \"description\": \"High-performance VM-based Nostr relay powered by strfry\",
+            \"pubkey\": \"\",
+            \"contact\": \"admin@nostria.app\",
+            \"supported_nips\": [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40],
+            \"software\": \"strfry\",
+            \"version\": \"0.9.6\"
+        }"
     }
 }
 

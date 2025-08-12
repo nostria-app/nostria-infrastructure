@@ -171,6 +171,22 @@ curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/mai
 curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/strfry-initial-full-sync.sh | sudo bash
 ```
 
+**Troubleshooting Router Sync Issues:**
+
+If events aren't syncing between discovery relays:
+
+```sh
+# Diagnose router sync issues
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/diagnose-strfry-router-sync.sh | sudo bash
+
+# Quick fix for missing discovery relay sync entries
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/fix-strfry-router-sync.sh | sudo bash
+
+# Monitor sync activity
+sudo journalctl -u strfry-router -f
+sudo /usr/local/bin/strfry-router-monitor.sh
+```
+
 ### VM Relay Deployment (NEW)
 
 For high-performance dedicated relay servers:

@@ -197,6 +197,8 @@ else
 fi
 
 # relay.damus.io (one-way sync down)
+
+# relay.damus.io (one-way sync down)
 if check_relay_connectivity "wss://relay.damus.io/" "relay.damus.io"; then
     if sync_with_retry "wss://relay.damus.io/" "relay.damus.io" "down" $MAX_RETRIES $RETRY_DELAY; then
         SUCCESSFUL_SYNCS=$((SUCCESSFUL_SYNCS + 1))

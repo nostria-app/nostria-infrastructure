@@ -79,15 +79,6 @@ $RELAY_DOMAIN {
     respond /health 200 {
         body "VM Relay is healthy"
     }
-    
-    # NIP-11 relay info endpoint
-    @nip11 {
-        header Accept application/nostr+json
-    }
-    respond @nip11 200 {
-        header Content-Type application/json
-        body "{\"name\": \"$RELAY_DOMAIN\", \"description\": \"High-performance VM-based Nostr relay powered by strfry\", \"pubkey\": \"\", \"contact\": \"admin@nostria.app\", \"supported_nips\": [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40], \"software\": \"strfry\", \"version\": \"0.9.6\"}"
-    }
 }
 
 # Redirect HTTP to HTTPS

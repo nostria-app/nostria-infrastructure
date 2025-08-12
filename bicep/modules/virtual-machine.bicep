@@ -178,11 +178,13 @@ resource vmExtension 'Microsoft.Compute/virtualMachines/extensions@2023-03-01' =
     autoUpgradeMinorVersion: true
     settings: {
       fileUris: [
-        'https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/refs/heads/main/scripts/vm-setup.sh'
+        'https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/refs/heads/main/scripts/vm-setup-robust.sh'
+        'https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/refs/heads/main/scripts/diagnose-vm-extension.sh'
       ]
+      timestamp: 123456789
     }
     protectedSettings: {
-      commandToExecute: 'bash vm-setup.sh ${forceUpdate}'
+      commandToExecute: 'chmod +x vm-setup-robust.sh diagnose-vm-extension.sh && ./vm-setup-robust.sh ${forceUpdate} 2>&1 | tee /var/log/extension-output.log'
     }
   }
 }

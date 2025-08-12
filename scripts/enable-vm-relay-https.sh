@@ -98,15 +98,42 @@ echo "Caddyfile updated. Testing configuration..."
 if sudo caddy validate --config /etc/caddy/Caddyfile; then
     echo "✅ Caddy configuration is valid"
 else
-    echo "❌ Caddy configuration is invalid. Restoring backup..."
+    echo "❌ Caddy configuration is invalid. Attempting to restore backup..."
     LATEST_BACKUP=$(ls -t /etc/caddy/Caddyfile.backup.* 2>/dev/null | head -n1)
     if [ -n "$LATEST_BACKUP" ]; then
         sudo cp "$LATEST_BACKUP" /etc/caddy/Caddyfile
         echo "Restored from backup: $LATEST_BACKUP"
+        exit 1
     else
-        echo "No backup found. Please manually fix the Caddyfile."
+        echo "No backup found. Creating a minimal working Caddyfile..."
+        sudo tee /etc/caddy/Caddyfile > /dev/null << MINIMAL_EOF
+{
+    admin off
+    email admin@nostria.app
+}
+
+$RELAY_DOMAIN {
+    reverse_proxy 127.0.0.1:7777
+    
+    header Access-Control-Allow-Origin *
+    
+    respond /health 200 {
+        body "VM Relay is healthy"
+    }
+}
+
+http://$RELAY_DOMAIN {
+    redir https://{host}{uri} permanent
+}
+MINIMAL_EOF
+        echo "Created minimal Caddyfile. Testing again..."
+        if sudo caddy validate --config /etc/caddy/Caddyfile; then
+            echo "✅ Minimal Caddy configuration is valid"
+        else
+            echo "❌ Even minimal configuration failed. Please check Caddy installation."
+            exit 1
+        fi
     fi
-    exit 1
 fi
 
 # Reload Caddy

@@ -76,21 +76,13 @@ $RELAY_DOMAIN {
         body "VM Relay is healthy"
     }
     
-    # NIP-11 relay info
+    # NIP-11 relay info endpoint
     @nip11 {
         header Accept application/nostr+json
     }
-    header @nip11 Content-Type application/json
     respond @nip11 200 {
-        body "{
-            \"name\": \"$RELAY_DOMAIN\",
-            \"description\": \"High-performance VM-based Nostr relay powered by strfry\",
-            \"pubkey\": \"\",
-            \"contact\": \"admin@nostria.app\",
-            \"supported_nips\": [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40],
-            \"software\": \"strfry\",
-            \"version\": \"0.9.6\"
-        }"
+        header Content-Type application/json
+        body "{\"name\": \"$RELAY_DOMAIN\", \"description\": \"High-performance VM-based Nostr relay powered by strfry\", \"pubkey\": \"\", \"contact\": \"admin@nostria.app\", \"supported_nips\": [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40], \"software\": \"strfry\", \"version\": \"0.9.6\"}"
     }
 }
 
@@ -107,7 +99,13 @@ if sudo caddy validate --config /etc/caddy/Caddyfile; then
     echo "✅ Caddy configuration is valid"
 else
     echo "❌ Caddy configuration is invalid. Restoring backup..."
-    sudo cp /etc/caddy/Caddyfile.backup.* /etc/caddy/Caddyfile
+    LATEST_BACKUP=$(ls -t /etc/caddy/Caddyfile.backup.* 2>/dev/null | head -n1)
+    if [ -n "$LATEST_BACKUP" ]; then
+        sudo cp "$LATEST_BACKUP" /etc/caddy/Caddyfile
+        echo "Restored from backup: $LATEST_BACKUP"
+    else
+        echo "No backup found. Please manually fix the Caddyfile."
+    fi
     exit 1
 fi
 

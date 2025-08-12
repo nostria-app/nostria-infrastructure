@@ -32,6 +32,10 @@ EOF
     apt-get update || true
     apt-get upgrade -y
 
+    # Create strfry user early (before disk setup needs it)
+    echo "Creating strfry user..."
+    useradd -r -s /bin/false -d /var/lib/strfry strfry || echo "strfry user already exists"
+
     # Setup data disk for strfry database
     echo "Setting up data disk for strfry database..."
     
@@ -103,6 +107,8 @@ EOF
     else
         echo "No additional data disk found, using OS disk for database"
         mkdir -p /var/lib/strfry
+        # Set ownership (strfry user already created)
+        chown -R strfry:strfry /var/lib/strfry
     fi
 else
     echo "Skipping package sources configuration (rerun detected)"
@@ -180,11 +186,9 @@ else
     echo "Skipping Caddy installation (already exists or rerun detected)"
 fi
 
-# Create strfry user
+# Create strfry directories (user already created earlier)
 if [ "$RERUN" = "false" ]; then
-    echo "Creating strfry user..."
-    useradd -r -s /bin/false -d /var/lib/strfry strfry
-
+    echo "Creating strfry directories..."
     # Create directories (after data disk is mounted)
     echo "Creating directories..."
     mkdir -p /var/lib/strfry/db
@@ -192,7 +196,7 @@ if [ "$RERUN" = "false" ]; then
     mkdir -p /var/log/strfry
     chown -R strfry:strfry /var/lib/strfry /var/log/strfry
 else
-    echo "Skipping strfry user creation (rerun detected)"
+    echo "Skipping strfry directory creation (rerun detected)"
     # Ensure directories exist and have proper ownership
     mkdir -p /var/lib/strfry/db
     mkdir -p /etc/strfry

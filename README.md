@@ -84,6 +84,12 @@ Use the deployment scripts to deploy the infrastructure:
 ./scripts/deploy-discovery-relay-vm.ps1 -Region "eu"
 ```
 
+### Deploying Relay VM
+
+```sh
+curl -s https://raw.githubusercontent.com/nostria-app/nostria-infrastructure/main/scripts/enable-vm-relay-https.sh | sudo bash
+```
+
 ### Deploying Discovery Relay VM
 
 After running the powershell script, the following must be done:

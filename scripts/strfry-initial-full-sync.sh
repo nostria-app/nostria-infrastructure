@@ -196,17 +196,6 @@ else
     FAILED_SYNCS=$((FAILED_SYNCS + 1))
 fi
 
-# index.eu.nostria.app (two-way sync)
-if check_relay_connectivity "wss://index.eu.nostria.app/" "Nostria EU Index Relay"; then
-    if sync_with_retry "wss://index.eu.nostria.app/" "Nostria EU Index Relay" "both" $MAX_RETRIES $RETRY_DELAY; then
-        SUCCESSFUL_SYNCS=$((SUCCESSFUL_SYNCS + 1))
-    else
-        FAILED_SYNCS=$((FAILED_SYNCS + 1))
-    fi
-else
-    FAILED_SYNCS=$((FAILED_SYNCS + 1))
-fi
-
 # relay.damus.io (one-way sync down)
 if check_relay_connectivity "wss://relay.damus.io/" "relay.damus.io"; then
     if sync_with_retry "wss://relay.damus.io/" "relay.damus.io" "down" $MAX_RETRIES $RETRY_DELAY; then

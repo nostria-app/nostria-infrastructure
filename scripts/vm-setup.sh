@@ -441,54 +441,50 @@ fi
 
 # Configure Caddy (always update the configuration)
 echo "Configuring/updating Caddy..."
-cat > /etc/caddy/Caddyfile << 'EOF'
-# Global options
+
+# Get the region and relay name from hostname
+HOSTNAME=$(hostname)
+if [[ $HOSTNAME =~ nostria-([a-z]+)-([a-z]+)-vm ]]; then
+    REGION="${BASH_REMATCH[1]}"
+    RELAY="${BASH_REMATCH[2]}"
+    RELAY_DOMAIN="$RELAY.$REGION.nostria.app"
+    echo "Detected relay domain: $RELAY_DOMAIN"
+else
+    echo "Warning: Cannot determine domain from hostname $HOSTNAME, using default"
+    RELAY_DOMAIN="ribo.eu.nostria.app"
+fi
+
+cat > /etc/caddy/Caddyfile << EOF
 {
+    admin off
     email admin@nostria.app
-    admin localhost:2019
 }
 
-# Main site configuration for ribo.eu.nostria.app
-ribo.eu.nostria.app {
-    # Reverse proxy to strfry WebSocket server
+$RELAY_DOMAIN {
     reverse_proxy 127.0.0.1:7777
-
-    # Security headers
-    header -Server
-    header X-Content-Type-Options nosniff
-    header X-Frame-Options DENY
-    header X-XSS-Protection "1; mode=block"
-    header Referrer-Policy strict-origin-when-cross-origin
-    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-
-    # Access logging
-    log {
-        output file /var/log/caddy/access.log
-        format json
+    
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Accept, Accept-Encoding, Sec-WebSocket-Protocol, Sec-WebSocket-Extensions, Sec-WebSocket-Key, Sec-WebSocket-Version, Upgrade, Connection"
     }
-
-    # Simple health check endpoint
-    respond /health "OK" 200
-
-    # NIP-11 relay information endpoint
-    @nostr_json path /.well-known/nostr.json
-    handle @nostr_json {
-        header Content-Type application/json
-        respond 200 {
-            body '{"names":{},"relays":{"ribo.eu.nostria.app":["wss://ribo.eu.nostria.app"]}}'
-        }
+    
+    # Handle WebSocket upgrade
+    @websocket {
+        header Connection upgrade
+        header Upgrade websocket
+    }
+    reverse_proxy @websocket 127.0.0.1:7777
+    
+    # Health check endpoint
+    respond /health 200 {
+        body "VM Relay is healthy"
     }
 }
 
-# Internal monitoring endpoint
-localhost:8080 {
-    # Health check for monitoring
-    respond /health "healthy" 200
-
-    # Proxy to strfry monitoring interface
-    handle_path /strfry/* {
-        reverse_proxy 127.0.0.1:7778
-    }
+# Redirect HTTP to HTTPS
+http://$RELAY_DOMAIN {
+    redir https://{host}{uri} permanent
 }
 EOF
 

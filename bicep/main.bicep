@@ -7,6 +7,10 @@ module appServicePlan 'modules/app-service-plan.bicep' = {
   params: {
     name: '${baseAppName}-plan'
     location: location
+    sku: {
+      name: 'B2'
+      tier: 'Basic'
+    }
   }
 }
 

@@ -3,7 +3,10 @@ param baseAppName string = 'nostria'
 
 @description('PostgreSQL administrator password')
 @secure()
-param postgresqlAdminPassword string
+param postgresqlAdminPassword string = ''
+
+@description('Deploy PostgreSQL server and related resources')
+param deployPostgreSQL bool = false
 
 // Deploy App Service Plan for the current region
 module appServicePlan 'modules/app-service-plan.bicep' = {
@@ -57,7 +60,7 @@ module cosmosDb 'modules/cosmos-db.bicep' = {
 }
 
 // Deploy PostgreSQL Flexible Server for the application
-module postgresqlServer 'modules/postgresql.bicep' = {
+module postgresqlServer 'modules/postgresql.bicep' = if (deployPostgreSQL) {
   name: '${baseAppName}-postgresql-deployment'
   params: {
     serverName: '${baseAppName}-postgres'
@@ -78,13 +81,13 @@ module postgresqlServer 'modules/postgresql.bicep' = {
 }
 
 // Store PostgreSQL connection string in Key Vault
-module postgresqlConnectionSecret 'modules/postgresql-connection-secret.bicep' = {
+module postgresqlConnectionSecret 'modules/postgresql-connection-secret.bicep' = if (deployPostgreSQL) {
   name: '${baseAppName}-postgresql-connection-secret-deployment'
   params: {
     keyVaultName: keyVault.outputs.keyVaultName
-    postgresqlServerFQDN: postgresqlServer.outputs.serverFQDN
-    postgresqlDatabaseName: postgresqlServer.outputs.databaseName
-    postgresqlAdminLogin: postgresqlServer.outputs.administratorLogin
+    postgresqlServerFQDN: postgresqlServer!.outputs.serverFQDN
+    postgresqlDatabaseName: postgresqlServer!.outputs.databaseName
+    postgresqlAdminLogin: postgresqlServer!.outputs.administratorLogin
     postgresqlAdminPassword: postgresqlAdminPassword
     secretName: 'postgresql-connection-string'
     contentType: 'PostgreSQL Connection String'
@@ -226,7 +229,7 @@ module serviceApp 'modules/container-app.bicep' = {
     containerImage: 'ghcr.io/nostria-app/nostria-service:latest'
     customDomainName: 'api.nostria.app'
     storageAccountName: mainStorage.outputs.name
-    appSettings: [
+    appSettings: concat([
       {
         name: 'VAPID_SUBJECT'
         value: 'mailto:nostriapp@gmail.com'
@@ -243,10 +246,6 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'NOTIFICATION_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
       }
-      {
-        name: 'POSTGRESQL_CONNECTION_STRING'
-        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=postgresql-connection-string)'
-      }
       // {
       //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'
       //   value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'
@@ -255,7 +254,12 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'AZURE_COSMOSDB_ENDPOINT'
         value: 'https://nostria.documents.azure.com:443/'
       }
-    ]
+    ], deployPostgreSQL ? [
+      {
+        name: 'POSTGRESQL_CONNECTION_STRING'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=postgresql-connection-string)'
+      }
+    ] : [])
   }
 }
 
@@ -421,12 +425,12 @@ output cosmosDbPrincipalId string = cosmosDb.outputs.principalId
 output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
 output cosmosDbContainerName string = cosmosDb.outputs.containerName
 
-// PostgreSQL outputs
-output postgresqlServerId string = postgresqlServer.outputs.serverId
-output postgresqlServerName string = postgresqlServer.outputs.serverName
-output postgresqlServerFQDN string = postgresqlServer.outputs.serverFQDN
-output postgresqlDatabaseName string = postgresqlServer.outputs.databaseName
-output postgresqlConnectionSecretName string = postgresqlConnectionSecret.outputs.secretName
+// PostgreSQL outputs (only available when PostgreSQL is deployed)
+output postgresqlServerId string = deployPostgreSQL ? postgresqlServer!.outputs.serverId : ''
+output postgresqlServerName string = deployPostgreSQL ? postgresqlServer!.outputs.serverName : ''
+output postgresqlServerFQDN string = deployPostgreSQL ? postgresqlServer!.outputs.serverFQDN : ''
+output postgresqlDatabaseName string = deployPostgreSQL ? postgresqlServer!.outputs.databaseName : ''
+output postgresqlConnectionSecretName string = deployPostgreSQL ? postgresqlConnectionSecret!.outputs.secretName : ''
 
 // Only output these if primary region (eu)
 output centralBackupStorageName string = centralBackupStorage.outputs.name

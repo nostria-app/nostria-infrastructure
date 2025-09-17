@@ -13,7 +13,10 @@ param (
     [switch]$WhatIf,
 
     [Parameter(Mandatory=$false)]
-    [SecureString]$PostgreSQLAdminPassword
+    [SecureString]$PostgreSQLAdminPassword,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$DeployPostgreSQL
 )
 
 function Write-StatusMessage {
@@ -96,6 +99,7 @@ if (-not (Test-Path -Path $bicepParamFile)) {
 Write-StatusMessage "Using Bicep template: $bicepTemplate" -Type Info
 Write-StatusMessage "Using parameter file: $bicepParamFile" -Type Info
 Write-StatusMessage "Note: Secrets will be read from Key Vault. Ensure secrets are manually added to Key Vault after deployment." -Type Warning
+Write-StatusMessage "Use -DeployPostgreSQL switch to include PostgreSQL server and related resources in the deployment." -Type Info
 
 # Create the resource group if it doesn't exist
 try {
@@ -167,15 +171,33 @@ if ($WhatIf) {
             baseAppName = 'nostria'
         }
         
-        # Add PostgreSQL password if provided
-        if ($PostgreSQLAdminPassword) {
+        # Determine if PostgreSQL should be deployed
+        $shouldDeployPostgreSQL = $DeployPostgreSQL.IsPresent
+        
+        # If PostgreSQL deployment is requested, validate password is provided
+        if ($shouldDeployPostgreSQL) {
+            if (-not $PostgreSQLAdminPassword) {
+                Write-StatusMessage "PostgreSQL deployment requested but no password provided. Please provide -PostgreSQLAdminPassword parameter." -Type Error
+                exit 1
+            }
+            $deploymentParams['deployPostgreSQL'] = $true
             $deploymentParams['postgresqlAdminPassword'] = $PostgreSQLAdminPassword
-            Write-StatusMessage "PostgreSQL admin password parameter added to deployment." -Type Info
-            Write-StatusMessage "Using template file directly (not parameter file) to support additional parameters." -Type Info
+            Write-StatusMessage "PostgreSQL deployment enabled with provided password." -Type Info
+            Write-StatusMessage "Using template file directly to support additional parameters." -Type Info
         } else {
-            # Use parameter file when no additional parameters are needed
-            $deploymentParams['TemplateParameterFile'] = $bicepParamFile
-            Write-StatusMessage "PostgreSQL admin password not provided. You may need to provide it interactively during deployment." -Type Warning
+            # Check if password was provided without the deployment flag
+            if ($PostgreSQLAdminPassword) {
+                Write-StatusMessage "PostgreSQL password provided but deployment not requested. Use -DeployPostgreSQL to enable PostgreSQL deployment." -Type Warning
+            }
+            
+            $deploymentParams['deployPostgreSQL'] = $false
+            Write-StatusMessage "PostgreSQL deployment disabled. Use -DeployPostgreSQL to enable PostgreSQL resources." -Type Info
+            
+            # Use parameter file when no additional parameters override defaults
+            if (-not $PostgreSQLAdminPassword) {
+                $deploymentParams['TemplateParameterFile'] = $bicepParamFile
+                Write-StatusMessage "Using parameter file for deployment." -Type Info
+            }
         }
         
         if ($Debug) {

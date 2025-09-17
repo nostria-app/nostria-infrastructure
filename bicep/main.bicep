@@ -166,6 +166,31 @@ module metadataAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [metadataApp]
 }
 
+// Management App (Single instance)
+module managementApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-management-app-deployment'
+  params: {
+    name: 'nostria-management-app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-management:latest'
+    customDomainName: 'admin.nostria.app'
+    appSettings: []
+  }
+}
+
+// Certificate for Management App
+module managementAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-management-app-cert-deployment'
+  params: {
+    name: 'nostria-management-app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'admin.nostria.app'
+  }
+  dependsOn: [managementApp]
+}
+
 // Find App (Single instance)
 module findApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-find-app-deployment'

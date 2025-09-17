@@ -1,0 +1,3281 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.35.1.17967",
+      "templateHash": "14240537867052699882"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "baseAppName": {
+      "type": "string",
+      "defaultValue": "nostria"
+    },
+    "postgresqlAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "PostgreSQL administrator password"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-plan-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[format('{0}-plan', parameters('baseAppName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sku": {
+            "value": {
+              "name": "B2",
+              "tier": "Basic"
+            }
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "15661607056480073081"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "kind": {
+              "type": "string",
+              "defaultValue": "linux"
+            },
+            "sku": {
+              "type": "object",
+              "defaultValue": {
+                "name": "B1",
+                "tier": "Basic"
+              }
+            },
+            "reserved": {
+              "type": "bool",
+              "defaultValue": true
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "kind": "[parameters('kind')]",
+              "sku": "[parameters('sku')]",
+              "properties": {
+                "reserved": "[parameters('reserved')]"
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/serverfarms', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-central-backup-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostriabakst"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "88437978059008931"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "defaultValue": "nostriabak"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Standard_LRS"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('name'), 'default', 'backups')]",
+              "properties": {
+                "shareQuota": 5120,
+                "enabledProtocols": "SMB"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('name'), 'default')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "fileShareName": {
+              "type": "string",
+              "value": "backups"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-key-vault-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[format('{0}-kv', parameters('baseAppName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "15930889963997087359"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "enabledForDeployment": {
+              "type": "bool",
+              "defaultValue": false
+            },
+            "enabledForTemplateDeployment": {
+              "type": "bool",
+              "defaultValue": true
+            },
+            "enabledForDiskEncryption": {
+              "type": "bool",
+              "defaultValue": false
+            },
+            "enableRbacAuthorization": {
+              "type": "bool",
+              "defaultValue": true
+            },
+            "softDeleteRetentionInDays": {
+              "type": "int",
+              "defaultValue": 7
+            }
+          },
+          "variables": {
+            "tenantId": "[subscription().tenantId]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "tenantId": "[variables('tenantId')]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "enabledForDeployment": "[parameters('enabledForDeployment')]",
+                "enabledForTemplateDeployment": "[parameters('enabledForTemplateDeployment')]",
+                "enabledForDiskEncryption": "[parameters('enabledForDiskEncryption')]",
+                "enableRbacAuthorization": "[parameters('enableRbacAuthorization')]",
+                "softDeleteRetentionInDays": "[parameters('softDeleteRetentionInDays')]",
+                "enableSoftDelete": false,
+                "publicNetworkAccess": "Enabled",
+                "networkAcls": {
+                  "bypass": "AzureServices",
+                  "defaultAction": "Allow"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[parameters('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), '2023-07-01').vaultUri]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-main-storage-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostriast"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "7391167033398229793"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "Standard_LRS"
+            },
+            "kind": {
+              "type": "string",
+              "defaultValue": "StorageV2"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Principal ID of the web app managed identity that needs access to the storage"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('sku')]"
+              },
+              "kind": "[parameters('kind')]",
+              "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('name'), 'default', 'data')]",
+              "properties": {
+                "shareQuota": 5120,
+                "enabledProtocols": "SMB"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('name'), 'default')]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('webAppPrincipalId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('name'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('name')), parameters('webAppPrincipalId'), 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[parameters('webAppPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "apiVersion": {
+              "type": "string",
+              "value": "2023-01-01"
+            },
+            "fileShareName": {
+              "type": "string",
+              "value": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-cosmos-db-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "enableServerless": {
+            "value": true
+          },
+          "enableFreeTier": {
+            "value": false
+          },
+          "defaultConsistencyLevel": {
+            "value": "Session"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "5534623767929185518"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "databaseAccountOfferType": {
+              "type": "string",
+              "defaultValue": "Standard",
+              "allowedValues": [
+                "Standard"
+              ],
+              "metadata": {
+                "description": "The database account offer type"
+              }
+            },
+            "enableServerless": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable serverless capacity mode"
+              }
+            },
+            "defaultConsistencyLevel": {
+              "type": "string",
+              "defaultValue": "Session",
+              "allowedValues": [
+                "Eventual",
+                "Session",
+                "BoundedStaleness",
+                "Strong",
+                "ConsistentPrefix"
+              ],
+              "metadata": {
+                "description": "The default consistency level of the Cosmos DB account"
+              }
+            },
+            "enableAutomaticFailover": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable automatic failover for regions"
+              }
+            },
+            "enableMultipleWriteLocations": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable multiple write locations"
+              }
+            },
+            "enableFreeTier": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable free tier (only one per subscription)"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "NostriaDB",
+              "metadata": {
+                "description": "Name of the database to create"
+              }
+            },
+            "containerName": {
+              "type": "string",
+              "defaultValue": "Documents",
+              "metadata": {
+                "description": "Name of the container to create"
+              }
+            },
+            "partitionKeyPath": {
+              "type": "string",
+              "defaultValue": "/pubkey",
+              "metadata": {
+                "description": "Partition key for the container"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts",
+              "apiVersion": "2024-11-15",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "kind": "GlobalDocumentDB",
+              "properties": {
+                "databaseAccountOfferType": "[parameters('databaseAccountOfferType')]",
+                "locations": [
+                  {
+                    "locationName": "[parameters('location')]",
+                    "failoverPriority": 0,
+                    "isZoneRedundant": false
+                  }
+                ],
+                "consistencyPolicy": {
+                  "defaultConsistencyLevel": "[parameters('defaultConsistencyLevel')]"
+                },
+                "enableAutomaticFailover": "[parameters('enableAutomaticFailover')]",
+                "enableMultipleWriteLocations": "[parameters('enableMultipleWriteLocations')]",
+                "enableFreeTier": "[parameters('enableFreeTier')]",
+                "capabilities": "[if(parameters('enableServerless'), createArray(createObject('name', 'EnableServerless')), createArray())]",
+                "disableKeyBasedMetadataWriteAccess": false,
+                "disableLocalAuth": false,
+                "publicNetworkAccess": "Enabled",
+                "networkAclBypass": "None",
+                "minimalTlsVersion": "Tls12"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              }
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('databaseName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('databaseName')]"
+                },
+                "options": "[if(parameters('enableServerless'), createObject(), createObject('throughput', 400))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}/{2}', parameters('name'), parameters('databaseName'), parameters('containerName'))]",
+              "properties": {
+                "resource": {
+                  "id": "[parameters('containerName')]",
+                  "partitionKey": {
+                    "paths": [
+                      "[parameters('partitionKeyPath')]"
+                    ],
+                    "kind": "Hash"
+                  },
+                  "indexingPolicy": {
+                    "indexingMode": "consistent",
+                    "includedPaths": [
+                      {
+                        "path": "/*"
+                      }
+                    ],
+                    "excludedPaths": [
+                      {
+                        "path": "/\"_etag\"/?"
+                      }
+                    ]
+                  },
+                  "defaultTtl": -1
+                },
+                "options": "[if(parameters('enableServerless'), createObject(), createObject('throughput', 400))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('name'), parameters('databaseName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "documentEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name')), '2024-11-15').documentEndpoint]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name')), '2024-11-15', 'full').identity.principalId]"
+            },
+            "apiVersion": {
+              "type": "string",
+              "value": "2024-11-15"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            },
+            "containerName": {
+              "type": "string",
+              "value": "[parameters('containerName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-postgresql-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "serverName": {
+            "value": "[format('{0}-postgres', parameters('baseAppName'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "administratorLogin": {
+            "value": "nostria_admin"
+          },
+          "administratorPassword": {
+            "value": "[parameters('postgresqlAdminPassword')]"
+          },
+          "databaseName": {
+            "value": "nostria"
+          },
+          "postgresqlVersion": {
+            "value": "17"
+          },
+          "skuName": {
+            "value": "Standard_B1ms"
+          },
+          "skuTier": {
+            "value": "Burstable"
+          },
+          "storageSizeGB": {
+            "value": 32
+          },
+          "storageTier": {
+            "value": "P4"
+          },
+          "backupRetentionDays": {
+            "value": 7
+          },
+          "geoRedundantBackup": {
+            "value": false
+          },
+          "highAvailabilityEnabled": {
+            "value": false
+          },
+          "publicNetworkAccess": {
+            "value": true
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "1835105307529983110"
+            }
+          },
+          "parameters": {
+            "serverName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "administratorLogin": {
+              "type": "string",
+              "defaultValue": "nostria_admin",
+              "metadata": {
+                "description": "Administrator username for the PostgreSQL server"
+              }
+            },
+            "administratorPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Administrator password for the PostgreSQL server"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "nostria",
+              "metadata": {
+                "description": "The name of the database to create"
+              }
+            },
+            "postgresqlVersion": {
+              "type": "string",
+              "defaultValue": "17",
+              "allowedValues": [
+                "11",
+                "12",
+                "13",
+                "14",
+                "15",
+                "16",
+                "17"
+              ],
+              "metadata": {
+                "description": "The version of PostgreSQL to use"
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Standard_B1ms",
+              "allowedValues": [
+                "Standard_B1ms",
+                "Standard_B2s",
+                "Standard_B2ms",
+                "Standard_B4ms",
+                "Standard_D2s_v3",
+                "Standard_D4s_v3",
+                "Standard_D8s_v3"
+              ],
+              "metadata": {
+                "description": "The SKU name for the PostgreSQL server"
+              }
+            },
+            "skuTier": {
+              "type": "string",
+              "defaultValue": "Burstable",
+              "allowedValues": [
+                "Burstable",
+                "GeneralPurpose",
+                "MemoryOptimized"
+              ],
+              "metadata": {
+                "description": "The tier of the PostgreSQL server"
+              }
+            },
+            "storageSizeGB": {
+              "type": "int",
+              "defaultValue": 32,
+              "minValue": 32,
+              "maxValue": 32767,
+              "metadata": {
+                "description": "Storage size in GB"
+              }
+            },
+            "storageTier": {
+              "type": "string",
+              "defaultValue": "P4",
+              "allowedValues": [
+                "P4",
+                "P6",
+                "P10",
+                "P15",
+                "P20",
+                "P30",
+                "P40",
+                "P50",
+                "P60",
+                "P70",
+                "P80"
+              ],
+              "metadata": {
+                "description": "Storage performance tier"
+              }
+            },
+            "backupRetentionDays": {
+              "type": "int",
+              "defaultValue": 7,
+              "minValue": 7,
+              "maxValue": 35,
+              "metadata": {
+                "description": "Backup retention period in days"
+              }
+            },
+            "geoRedundantBackup": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable geo-redundant backup"
+              }
+            },
+            "highAvailabilityEnabled": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable high availability"
+              }
+            },
+            "publicNetworkAccess": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable public network access"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2023-12-01-preview",
+              "name": "[parameters('serverName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuTier')]"
+              },
+              "properties": {
+                "version": "[parameters('postgresqlVersion')]",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorPassword')]",
+                "storage": {
+                  "storageSizeGB": "[parameters('storageSizeGB')]",
+                  "tier": "[parameters('storageTier')]",
+                  "autoGrow": "Enabled"
+                },
+                "backup": {
+                  "backupRetentionDays": "[parameters('backupRetentionDays')]",
+                  "geoRedundantBackup": "[if(parameters('geoRedundantBackup'), 'Enabled', 'Disabled')]"
+                },
+                "highAvailability": {
+                  "mode": "[if(parameters('highAvailabilityEnabled'), 'ZoneRedundant', 'Disabled')]"
+                },
+                "network": {
+                  "publicNetworkAccess": "[if(parameters('publicNetworkAccess'), 'Enabled', 'Disabled')]"
+                },
+                "authConfig": {
+                  "activeDirectoryAuth": "Enabled",
+                  "passwordAuth": "Enabled",
+                  "tenantId": "[subscription().tenantId]"
+                },
+                "dataEncryption": {
+                  "type": "SystemManaged"
+                }
+              }
+            },
+            {
+              "condition": "[parameters('publicNetworkAccess')]",
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+              "apiVersion": "2023-12-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2023-12-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "serverId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+            },
+            "serverName": {
+              "type": "string",
+              "value": "[parameters('serverName')]"
+            },
+            "serverFQDN": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2023-12-01-preview').fullyQualifiedDomainName]"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            },
+            "administratorLogin": {
+              "type": "string",
+              "value": "[parameters('administratorLogin')]"
+            },
+            "connectionStringTemplate": {
+              "type": "string",
+              "value": "[format('postgresql://{0}:{{password}}@{1}:5432/{2}?sslmode=require', parameters('administratorLogin'), reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2023-12-01-preview').fullyQualifiedDomainName, parameters('databaseName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-postgresql-connection-secret-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName'))), '2022-09-01').outputs.keyVaultName.value]"
+          },
+          "postgresqlServerFQDN": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.serverFQDN.value]"
+          },
+          "postgresqlDatabaseName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.databaseName.value]"
+          },
+          "postgresqlAdminLogin": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.administratorLogin.value]"
+          },
+          "postgresqlAdminPassword": {
+            "value": "[parameters('postgresqlAdminPassword')]"
+          },
+          "secretName": {
+            "value": "postgresql-connection-string"
+          },
+          "contentType": {
+            "value": "PostgreSQL Connection String"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "6331047673456984257"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string"
+            },
+            "postgresqlServerFQDN": {
+              "type": "string"
+            },
+            "postgresqlDatabaseName": {
+              "type": "string"
+            },
+            "postgresqlAdminLogin": {
+              "type": "string"
+            },
+            "postgresqlAdminPassword": {
+              "type": "securestring"
+            },
+            "secretName": {
+              "type": "string",
+              "defaultValue": "postgresql-connection-string"
+            },
+            "contentType": {
+              "type": "string",
+              "defaultValue": "PostgreSQL Connection String"
+            }
+          },
+          "variables": {
+            "connectionString": "[format('postgresql://{0}:{1}@{2}:5432/{3}?sslmode=require', parameters('postgresqlAdminLogin'), parameters('postgresqlAdminPassword'), parameters('postgresqlServerFQDN'), parameters('postgresqlDatabaseName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('keyVaultName'), parameters('secretName'))]",
+              "properties": {
+                "value": "[variables('connectionString')]",
+                "contentType": "[parameters('contentType')]",
+                "attributes": {
+                  "enabled": true
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "secretName": {
+              "type": "string",
+              "value": "[parameters('secretName')]"
+            },
+            "secretUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', parameters('keyVaultName'), parameters('secretName')), '2023-07-01').secretUri]"
+            },
+            "secretUriWithVersion": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', parameters('keyVaultName'), parameters('secretName')), '2023-07-01').secretUriWithVersion]"
+            },
+            "keyVaultReference": {
+              "type": "string",
+              "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName={1})', parameters('keyVaultName'), parameters('secretName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-web-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-web"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria-website:latest"
+          },
+          "customDomainName": {
+            "value": "www.nostria.app"
+          },
+          "appSettings": {
+            "value": []
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-web-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-web"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "www.nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-web-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria:latest"
+          },
+          "customDomainName": {
+            "value": "nostria.app"
+          },
+          "appSettings": {
+            "value": []
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-metadata-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-metadata-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria-metadata:latest"
+          },
+          "customDomainName": {
+            "value": "metadata.nostria.app"
+          },
+          "appSettings": {
+            "value": []
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-metadata-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-metadata-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "metadata.nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-metadata-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-find-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-find-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria-find:latest"
+          },
+          "customDomainName": {
+            "value": "find.nostria.app"
+          },
+          "appSettings": {
+            "value": []
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-find-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-find-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "find.nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-find-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-service"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria-service:latest"
+          },
+          "customDomainName": {
+            "value": "api.nostria.app"
+          },
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+          },
+          "appSettings": {
+            "value": [
+              {
+                "name": "VAPID_SUBJECT",
+                "value": "mailto:nostriapp@gmail.com"
+              },
+              {
+                "name": "PUBLIC_VAPID_KEY",
+                "value": "BGlnJ82dweHfLKdW2mMOLhYOj1teZ6aiFpkoPLaS5NcEqqPl2WVLMnm2EPo82C9ShWvziiEETuv5nEJYeKN1mX8"
+              },
+              {
+                "name": "PRIVATE_VAPID_KEY",
+                "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=private-vapid-key)', reference(resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName'))), '2022-09-01').outputs.keyVaultName.value)]"
+              },
+              {
+                "name": "NOTIFICATION_API_KEY",
+                "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=notification-api-key)', reference(resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName'))), '2022-09-01').outputs.keyVaultName.value)]"
+              },
+              {
+                "name": "POSTGRESQL_CONNECTION_STRING",
+                "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=postgresql-connection-string)', reference(resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName'))), '2022-09-01').outputs.keyVaultName.value)]"
+              },
+              {
+                "name": "AZURE_COSMOSDB_ENDPOINT",
+                "value": "https://nostria.documents.azure.com:443/"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-service"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "api.nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-storage-role-assignment1', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName'))), '2022-09-01').outputs.webAppPrincipalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "7487902548739107591"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "defaultValue": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+              "metadata": {
+                "description": "Role definition ID to assign. Defaults to Storage File Data SMB Share Contributor."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-storage-role-assignment2', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName'))), '2022-09-01').outputs.webAppPrincipalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "7487902548739107591"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "defaultValue": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+              "metadata": {
+                "description": "Role definition ID to assign. Defaults to Storage File Data SMB Share Contributor."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-storage-role-assignment3', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName'))), '2022-09-01').outputs.webAppPrincipalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "7487902548739107591"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "defaultValue": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+              "metadata": {
+                "description": "Role definition ID to assign. Defaults to Storage File Data SMB Share Contributor."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Storage/storageAccounts/{0}', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), parameters('roleDefinitionId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-main-storage-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-keyvault-role-assignment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName'))), '2022-09-01').outputs.keyVaultName.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName'))), '2022-09-01').outputs.webAppPrincipalId.value]"
+          },
+          "roleDefinitionId": {
+            "value": "4633458b-17de-408a-b874-0445c86b69e6"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12711066284374150145"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "defaultValue": "4633458b-17de-408a-b874-0445c86b69e6",
+              "metadata": {
+                "description": "Role definition ID to assign. Defaults to Key Vault Secrets User."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('principalId'), parameters('roleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('principalId'), parameters('roleDefinitionId')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-key-vault-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-service-cosmosdb-role-assignment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "cosmosDbAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName'))), '2022-09-01').outputs.webAppPrincipalId.value]"
+          },
+          "useBuiltInDataContributorRole": {
+            "value": true
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "13909999854073007192"
+            }
+          },
+          "parameters": {
+            "cosmosDbAccountName": {
+              "type": "string"
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "useBuiltInDataContributorRole": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Use built-in Cosmos DB Data Contributor role"
+              }
+            }
+          },
+          "resources": [
+            {
+              "condition": "[not(parameters('useBuiltInDataContributorRole'))]",
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), 'custom-data-contributor'))]",
+              "properties": {
+                "roleName": "Custom Data Contributor",
+                "type": "CustomRole",
+                "assignableScopes": [
+                  "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
+                ],
+                "permissions": [
+                  {
+                    "dataActions": [
+                      "Microsoft.DocumentDB/databaseAccounts/readMetadata",
+                      "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*",
+                      "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/*"
+                    ],
+                    "notDataActions": []
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+              "apiVersion": "2024-11-15",
+              "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), parameters('principalId'), 'sql-role-assignment'))]",
+              "properties": {
+                "principalId": "[parameters('principalId')]",
+                "roleDefinitionId": "[if(parameters('useBuiltInDataContributorRole'), format('{0}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))), resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), 'custom-data-contributor')))]",
+                "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), 'custom-data-contributor'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), parameters('principalId'), 'sql-role-assignment'))]"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "value": "[if(parameters('useBuiltInDataContributorRole'), format('{0}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002', resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))), resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', parameters('cosmosDbAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), 'custom-data-contributor')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-service-app-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-status-app-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-status-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "containerImage": {
+            "value": "ghcr.io/nostria-app/nostria-status:latest"
+          },
+          "customDomainName": {
+            "value": "status.nostria.app"
+          },
+          "appSettings": {
+            "value": [
+              {
+                "name": "DB_PATH",
+                "value": "/app/data"
+              },
+              {
+                "name": "DATA_RETENTION_DAYS",
+                "value": "14"
+              },
+              {
+                "name": "CHECK_INTERVAL_MS",
+                "value": "600000"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "12624845585561962714"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            },
+            "containerImage": {
+              "type": "string"
+            },
+            "customDomainName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "appSettings": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "storageAccountName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "configContent": {
+              "type": "securestring",
+              "defaultValue": ""
+            },
+            "configFileName": {
+              "type": "string",
+              "defaultValue": "config.yml"
+            },
+            "startupCommand": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "resources": [
+            {
+              "condition": "[and(not(empty(parameters('configContent'))), not(empty(parameters('storageAccountName'))))]",
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('{0}-config-deployment', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "7.5",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "CONFIG_CONTENT",
+                    "secureValue": "[parameters('configContent')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, '')]"
+                  },
+                  {
+                    "name": "FILE_SHARE_NAME",
+                    "value": "data"
+                  },
+                  {
+                    "name": "CONFIG_FILE_NAME",
+                    "value": "[parameters('configFileName')]"
+                  }
+                ],
+                "scriptContent": "# Print diagnostic information\r\nWrite-Output \"Starting config deployment script\"\r\n\r\n# Check for required environment variables\r\nif (-not $env:CONFIG_CONTENT) {\r\n    Write-Error \"CONFIG_CONTENT environment variable is missing\"\r\n    throw \"Missing required environment variable: CONFIG_CONTENT\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_NAME) {\r\n    Write-Error \"STORAGE_ACCOUNT_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_NAME\"\r\n}\r\n\r\nif (-not $env:STORAGE_ACCOUNT_KEY) {\r\n    Write-Error \"STORAGE_ACCOUNT_KEY environment variable is missing\"\r\n    throw \"Missing required environment variable: STORAGE_ACCOUNT_KEY\"\r\n}\r\n\r\nif (-not $env:FILE_SHARE_NAME) {\r\n    Write-Error \"FILE_SHARE_NAME environment variable is missing\"\r\n    throw \"Missing required environment variable: FILE_SHARE_NAME\"\r\n}\r\n\r\nif (-not $env:CONFIG_FILE_NAME) {\r\n    Write-Warning \"CONFIG_FILE_NAME environment variable is missing, using default 'config.yml'\"\r\n    $env:CONFIG_FILE_NAME = \"config.yml\"\r\n}\r\n\r\n# Write config content directly to a file in the current directory\r\n$configPath = $env:CONFIG_FILE_NAME\r\nWrite-Output \"Writing config content to $configPath\"\r\n$env:CONFIG_CONTENT | Out-File -FilePath $configPath -Encoding utf8\r\n\r\nif (-not (Test-Path $configPath)) {\r\n    Write-Error \"Failed to create config file at $configPath\"\r\n    throw \"Config file creation failed\"\r\n}\r\n\r\n# Get storage account context using key\r\nWrite-Output \"Creating storage context for $($env:STORAGE_ACCOUNT_NAME)\"\r\n$storageContext = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -StorageAccountKey $env:STORAGE_ACCOUNT_KEY\r\n\r\n# Check if file share exists, create if not\r\nWrite-Output \"Checking if file share $($env:FILE_SHARE_NAME) exists\"\r\n$share = Get-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $share) {\r\n    Write-Output \"Creating file share $($env:FILE_SHARE_NAME)\"\r\n    $share = New-AzStorageShare -Context $storageContext -Name $env:FILE_SHARE_NAME\r\n}\r\n\r\n# Upload config file to file share\r\nWrite-Output \"Uploading $($env:CONFIG_FILE_NAME) to file share $($env:FILE_SHARE_NAME)\"\r\nSet-AzStorageFileContent -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Source $configPath -Path $env:CONFIG_FILE_NAME -Force\r\n\r\n# Verify upload was successful\r\nWrite-Output \"Verifying file was uploaded successfully\"\r\n$fileExists = Get-AzStorageFile -Context $storageContext -ShareName $env:FILE_SHARE_NAME -Path $env:CONFIG_FILE_NAME -ErrorAction SilentlyContinue\r\nif ($null -eq $fileExists) {\r\n    Write-Error \"Failed to verify $($env:CONFIG_FILE_NAME) was uploaded to storage\"\r\n    throw \"File upload verification failed\"\r\n} else {\r\n    Write-Output \"$($env:CONFIG_FILE_NAME) successfully uploaded to $($env:FILE_SHARE_NAME) share\"\r\n}\r\n\r\n# Cleanup the local file after successful upload\r\nif (Test-Path $configPath) {\r\n    Remove-Item -Path $configPath -Force\r\n    Write-Output \"Removed temporary local config file\"\r\n}\r\n\r\n# Return success\r\n$DeploymentScriptOutputs = @{}\r\n$DeploymentScriptOutputs['configFileUploaded'] = $true\r\n$DeploymentScriptOutputs['timestamp'] = Get-Date -Format o\r\n$DeploymentScriptOutputs['configFileName'] = $env:CONFIG_FILE_NAME\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "kind": "app,linux,container",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "http20Enabled": true,
+                  "alwaysOn": true,
+                  "appSettings": "[concat(parameters('appSettings'), createArray(createObject('name', 'WEBSITES_ENABLE_APP_SERVICE_STORAGE', 'value', 'false'), createObject('name', 'DOCKER_REGISTRY_SERVER_URL', 'value', 'https://ghcr.io'), createObject('name', 'DOCKER_ENABLE_CI', 'value', 'true')), if(not(empty(parameters('storageAccountName'))), createArray(createObject('name', 'WEBSITES_CONTAINER_START_TIME_LIMIT', 'value', '600'), createObject('name', 'AZURE_STORAGE_ACCOUNT', 'value', parameters('storageAccountName')), createObject('name', 'WEBSITES_MOUNT_ENABLED', 'value', '1'), createObject('name', 'AZURE_STORAGE_AUTHENTICATION_TYPE', 'value', 'ManagedIdentity')), createArray()))]",
+                  "linuxFxVersion": "[format('DOCKER|{0}', parameters('containerImage'))]",
+                  "appCommandLine": "[if(not(empty(parameters('startupCommand'))), parameters('startupCommand'), null())]",
+                  "azureStorageAccounts": "[if(not(empty(parameters('storageAccountName'))), createObject('data', createObject('type', 'AzureFiles', 'accountName', parameters('storageAccountName'), 'mountPath', '/app/data', 'shareName', 'data', 'accessKey', if(not(empty(parameters('storageAccountName'))), listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-01-01').keys[0].value, ''))), createObject())]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deploymentScripts', format('{0}-config-deployment', parameters('name')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'slotConfigNames')]",
+              "properties": {
+                "azureStorageConfigNames": [
+                  "data"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('customDomainName')))]",
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "hostNameType": "Verified",
+                "sslState": "Disabled",
+                "thumbprint": "",
+                "siteName": "[parameters('name')]",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "hostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01').defaultHostName]"
+            },
+            "webAppPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('name')), '2024-04-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-status-app-cert-deployment', parameters('baseAppName'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "nostria-status-app"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "appServicePlanId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+          },
+          "customDomainName": {
+            "value": "status.nostria.app"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.35.1.17967",
+              "templateHash": "2401566173205132384"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "customDomainName": {
+              "type": "string"
+            },
+            "appServicePlanId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/certificates",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-cert', parameters('name'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "serverFarmId": "[parameters('appServicePlanId')]",
+                "canonicalName": "[parameters('customDomainName')]",
+                "hostNames": [
+                  "[parameters('customDomainName')]"
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites/hostNameBindings",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}/{1}', parameters('name'), parameters('customDomainName'))]",
+              "properties": {
+                "sslState": "SniEnabled",
+                "thumbprint": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]",
+                "siteName": "[parameters('name')]",
+                "hostNameType": "Verified",
+                "azureResourceType": "Website",
+                "customHostNameDnsRecordType": "CName"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "certificateThumbprint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/certificates', format('{0}-cert', parameters('name'))), '2024-04-01').thumbprint]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-status-app-deployment', parameters('baseAppName')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "appServicePlanId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-plan-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+    },
+    "cosmosDbAccountId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.id.value]"
+    },
+    "cosmosDbAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+    },
+    "cosmosDbDocumentEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.documentEndpoint.value]"
+    },
+    "cosmosDbPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.principalId.value]"
+    },
+    "cosmosDbDatabaseName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.databaseName.value]"
+    },
+    "cosmosDbContainerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-cosmos-db-deployment', parameters('baseAppName'))), '2022-09-01').outputs.containerName.value]"
+    },
+    "postgresqlServerId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.serverId.value]"
+    },
+    "postgresqlServerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.serverName.value]"
+    },
+    "postgresqlServerFQDN": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.serverFQDN.value]"
+    },
+    "postgresqlDatabaseName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-deployment', parameters('baseAppName'))), '2022-09-01').outputs.databaseName.value]"
+    },
+    "postgresqlConnectionSecretName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgresql-connection-secret-deployment', parameters('baseAppName'))), '2022-09-01').outputs.secretName.value]"
+    },
+    "centralBackupStorageName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-central-backup-deployment', parameters('baseAppName'))), '2022-09-01').outputs.name.value]"
+    },
+    "centralBackupShareName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-central-backup-deployment', parameters('baseAppName'))), '2022-09-01').outputs.fileShareName.value]"
+    }
+  }
+}

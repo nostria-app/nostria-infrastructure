@@ -1,6 +1,10 @@
 param location string = resourceGroup().location
 param baseAppName string = 'nostria'
 
+@description('PostgreSQL administrator password')
+@secure()
+param postgresqlAdminPassword string
+
 // Deploy App Service Plan for the current region
 module appServicePlan 'modules/app-service-plan.bicep' = {
   name: '${baseAppName}-plan-deployment'
@@ -49,6 +53,41 @@ module cosmosDb 'modules/cosmos-db.bicep' = {
     enableServerless: true
     enableFreeTier: false
     defaultConsistencyLevel: 'Session'
+  }
+}
+
+// Deploy PostgreSQL Flexible Server for the application
+module postgresqlServer 'modules/postgresql.bicep' = {
+  name: '${baseAppName}-postgresql-deployment'
+  params: {
+    serverName: '${baseAppName}-postgres'
+    location: location
+    administratorLogin: 'nostria_admin'
+    administratorPassword: postgresqlAdminPassword
+    databaseName: 'nostria'
+    postgresqlVersion: '17'
+    skuName: 'Standard_B1ms'
+    skuTier: 'Burstable'
+    storageSizeGB: 32
+    storageTier: 'P4'
+    backupRetentionDays: 7
+    geoRedundantBackup: false
+    highAvailabilityEnabled: false
+    publicNetworkAccess: true
+  }
+}
+
+// Store PostgreSQL connection string in Key Vault
+module postgresqlConnectionSecret 'modules/postgresql-connection-secret.bicep' = {
+  name: '${baseAppName}-postgresql-connection-secret-deployment'
+  params: {
+    keyVaultName: keyVault.outputs.keyVaultName
+    postgresqlServerFQDN: postgresqlServer.outputs.serverFQDN
+    postgresqlDatabaseName: postgresqlServer.outputs.databaseName
+    postgresqlAdminLogin: postgresqlServer.outputs.administratorLogin
+    postgresqlAdminPassword: postgresqlAdminPassword
+    secretName: 'postgresql-connection-string'
+    contentType: 'PostgreSQL Connection String'
   }
 }
 
@@ -178,6 +217,10 @@ module serviceApp 'modules/container-app.bicep' = {
       {
         name: 'NOTIFICATION_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
+      }
+      {
+        name: 'POSTGRESQL_CONNECTION_STRING'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=postgresql-connection-string)'
       }
       // {
       //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'
@@ -352,6 +395,13 @@ output cosmosDbDocumentEndpoint string = cosmosDb.outputs.documentEndpoint
 output cosmosDbPrincipalId string = cosmosDb.outputs.principalId
 output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
 output cosmosDbContainerName string = cosmosDb.outputs.containerName
+
+// PostgreSQL outputs
+output postgresqlServerId string = postgresqlServer.outputs.serverId
+output postgresqlServerName string = postgresqlServer.outputs.serverName
+output postgresqlServerFQDN string = postgresqlServer.outputs.serverFQDN
+output postgresqlDatabaseName string = postgresqlServer.outputs.databaseName
+output postgresqlConnectionSecretName string = postgresqlConnectionSecret.outputs.secretName
 
 // Only output these if primary region (eu)
 output centralBackupStorageName string = centralBackupStorage.outputs.name

@@ -10,7 +10,10 @@ param (
     [string]$Location = "westeurope",
     
     [Parameter(Mandatory=$false)]
-    [switch]$WhatIf
+    [switch]$WhatIf,
+
+    [Parameter(Mandatory=$false)]
+    [SecureString]$PostgreSQLAdminPassword
 )
 
 function Write-StatusMessage {
@@ -151,13 +154,28 @@ if ($WhatIf) {
                 }
                 exit 1
             }
-        }        $deploymentParams = @{
+        }        
+        
+        # Prepare deployment parameters
+        $deploymentParams = @{
             ResourceGroupName = $ResourceGroupName
             TemplateFile = $bicepTemplate
-            TemplateParameterFile = $bicepParamFile
             ErrorAction = 'Stop'
             # Add deployment name for easier tracking
             Name = "MainDeployment-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            # Base parameters
+            baseAppName = 'nostria'
+        }
+        
+        # Add PostgreSQL password if provided
+        if ($PostgreSQLAdminPassword) {
+            $deploymentParams['postgresqlAdminPassword'] = $PostgreSQLAdminPassword
+            Write-StatusMessage "PostgreSQL admin password parameter added to deployment." -Type Info
+            Write-StatusMessage "Using template file directly (not parameter file) to support additional parameters." -Type Info
+        } else {
+            # Use parameter file when no additional parameters are needed
+            $deploymentParams['TemplateParameterFile'] = $bicepParamFile
+            Write-StatusMessage "PostgreSQL admin password not provided. You may need to provide it interactively during deployment." -Type Warning
         }
         
         if ($Debug) {

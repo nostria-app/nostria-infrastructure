@@ -58,15 +58,15 @@ storage:
     # mime type of blob
     - type: text/*
       # time since last accessed
-      expiration: 1 month
+      expiration: 1 year
     - type: "image/*"
-      expiration: 1 week
+      expiration: 1 year
     - type: "video/*"
-      expiration: 5 days
+      expiration: 1 year
     - type: "model/*"
-      expiration: 1 week
+      expiration: 1 year
     - type: "*"
-      expiration: 2 days
+      expiration: 1 year
 
 # Config for the /upload endpoint
 upload:

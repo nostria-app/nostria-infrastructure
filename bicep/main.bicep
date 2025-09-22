@@ -239,6 +239,22 @@ module serviceApp 'modules/container-app.bicep' = {
         value: 'BGlnJ82dweHfLKdW2mMOLhYOj1teZ6aiFpkoPLaS5NcEqqPl2WVLMnm2EPo82C9ShWvziiEETuv5nEJYeKN1mX8'
       }
       {
+        name: 'USE_POSTGRESQL'
+        value: 'true'
+      }
+      {
+        name: 'DUAL_DATABASE_MODE'
+        value: 'false'
+      }
+      {
+        name: 'MIGRATION_MODE'
+        value: 'false'
+      }
+      {
+        name: 'DATABASE_URL'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=postgresql-connection-string)'
+      }
+      {
         name: 'PRIVATE_VAPID_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=private-vapid-key)'
       }
@@ -254,12 +270,7 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'AZURE_COSMOSDB_ENDPOINT'
         value: 'https://nostria.documents.azure.com:443/'
       }
-    ], deployPostgreSQL ? [
-      {
-        name: 'POSTGRESQL_CONNECTION_STRING'
-        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=postgresql-connection-string)'
-      }
-    ] : [])
+    ])
   }
 }
 

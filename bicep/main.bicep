@@ -239,6 +239,10 @@ module serviceApp 'modules/container-app.bicep' = {
         value: 'BGlnJ82dweHfLKdW2mMOLhYOj1teZ6aiFpkoPLaS5NcEqqPl2WVLMnm2EPo82C9ShWvziiEETuv5nEJYeKN1mX8'
       }
       {
+        name: 'ADMIN_PUBKEYS'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+      }
+      {
         name: 'USE_POSTGRESQL'
         value: 'true'
       }

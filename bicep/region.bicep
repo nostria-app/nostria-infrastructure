@@ -14,6 +14,12 @@ param appServicePlanSkus object = {}
 @description('Array of media server names')
 param mediaNames array
 
+@description('Key Vault name for retrieving secrets')
+param keyVaultName string = ''
+
+@description('Resource group where the Key Vault is located')
+param globalResourceGroupName string = 'nostria-global'
+
 // Read the media configuration file
 var mediaConfigContent = loadTextContent('../config/media/config.yml')
 
@@ -24,10 +30,10 @@ module regionConfig 'modules/region-mapping.bicep' = {
   }
 }
 
-var mediaCount = contains(mediaCountPerRegion, currentRegion) ? mediaCountPerRegion[currentRegion] : defaultMediaCount
+var mediaCount = mediaCountPerRegion[?currentRegion] ?? defaultMediaCount
 
 // Choose appropriate SKU based on region or default to B1 if region not specified
-var selectedSku = contains(appServicePlanSkus, currentRegion) ? appServicePlanSkus[currentRegion] : {
+var selectedSku = appServicePlanSkus[?currentRegion] ?? {
   name: 'B1'
   tier: 'Basic'
 }
@@ -65,6 +71,8 @@ module mediaApps 'modules/container-app.bicep' = [
       storageAccountName: mediaStorageAccounts[i].outputs.name
       configContent: mediaConfigContent
       configFileName: 'config.yml'
+      keyVaultName: keyVaultName
+      globalResourceGroupName: globalResourceGroupName
       appSettings: [
         {
           name: 'BLOSSOM_CONFIG'
@@ -74,9 +82,27 @@ module mediaApps 'modules/container-app.bicep' = [
           name: 'WEBSITES_PORT'
           value: '3000'
         }
+        // Add Key Vault reference for admin password
+        {
+          name: 'BLOSSOM_ADMIN_PASSWORD'
+          value: !empty(keyVaultName) ? '@Microsoft.KeyVault(VaultName=${keyVaultName};SecretName=blossom-admin-password)' : ''
+        }
       ]
     }
     dependsOn: [mediaStorageAccounts]
+  }
+]
+
+// Grant Key Vault RBAC roles to media apps (cross-resource-group)
+module mediaAppsKeyVaultRbac 'modules/cross-rg-key-vault-rbac.bicep' = [
+  for i in range(0, mediaCount): if (!empty(keyVaultName)) {
+    name: '${baseAppName}-${currentRegion}-media-${toLower(mediaNames[i])}-kv-rbac'
+    params: {
+      principalId: mediaApps[i].outputs.webAppPrincipalId
+      keyVaultName: keyVaultName
+      keyVaultResourceGroupName: globalResourceGroupName
+    }
+    dependsOn: [mediaApps]
   }
 ]
 

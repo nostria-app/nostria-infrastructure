@@ -39,6 +39,21 @@ module keyVault 'modules/key-vault.bicep' = {
   }
 }
 
+// Store Blossom admin password in Key Vault
+@description('Blossom admin dashboard password')
+@secure()
+param blossomAdminPassword string = ''
+
+module blossomAdminPasswordSecret 'modules/key-vault-secret.bicep' = if (!empty(blossomAdminPassword)) {
+  name: '${baseAppName}-blossom-admin-password-secret-deployment'
+  params: {
+    keyVaultName: keyVault.outputs.keyVaultName
+    secretName: 'blossom-admin-password'
+    secretValue: blossomAdminPassword
+    contentType: 'Blossom Admin Password'
+  }
+}
+
 module mainStorage 'modules/storage-account.bicep' = {
   name: '${baseAppName}-main-storage-deployment'
   params: {
@@ -103,7 +118,22 @@ module websiteApp 'modules/container-app.bicep' = {
     appServicePlanId: appServicePlan.outputs.id
     containerImage: 'ghcr.io/nostria-app/nostria-website:latest'
     customDomainName: 'www.nostria.app'
-    appSettings: []
+    keyVaultName: keyVault.outputs.keyVaultName
+    appSettings: [
+      {
+        name: 'BLOSSOM_ADMIN_PASSWORD'
+        value: !empty(blossomAdminPassword) ? '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=blossom-admin-password)' : ''
+      }
+    ]
+  }
+}
+
+// Grant Key Vault RBAC role to website app
+module websiteAppKeyVaultRbac 'modules/key-vault-rbac-assignment.bicep' = if (!empty(blossomAdminPassword)) {
+  name: '${baseAppName}-web-app-kv-rbac'
+  params: {
+    principalId: websiteApp.outputs.webAppPrincipalId
+    keyVaultName: keyVault.outputs.keyVaultName
   }
 }
 

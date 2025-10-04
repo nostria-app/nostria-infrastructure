@@ -200,6 +200,49 @@ foreach ($region in $deployRegions) {
             $deployment = New-AzResourceGroupDeployment @deploymentParams
             if ($deployment.ProvisioningState -eq "Succeeded") {
                 Write-StatusMessage "Deployment to $region succeeded!" -Type Success
+                
+                # Post-deployment: Configure Key Vault RBAC for regional apps
+                try {
+                    Write-StatusMessage "Configuring Key Vault RBAC permissions for $region apps..." -Type Info
+                    
+                    # Get the Key Vault from the global resource group
+                    $keyVault = Get-AzKeyVault -VaultName "nostria-kv" -ResourceGroupName "nostria-global" -ErrorAction SilentlyContinue
+                    
+                    if ($keyVault -and $keyVault.EnableRbacAuthorization) {
+                        # Get web apps in this regional resource group that use Key Vault references
+                        $webApps = Get-AzWebApp -ResourceGroupName $resourceGroupName | Where-Object {
+                            $_.SiteConfig.AppSettings | Where-Object {$_.Value -like "*@Microsoft.KeyVault*"}
+                        }
+                        
+                        foreach ($app in $webApps) {
+                            $principalId = $app.Identity.PrincipalId
+                            if ($principalId) {
+                                try {
+                                    # Check if role assignment already exists
+                                    $existingAssignment = Get-AzRoleAssignment -ObjectId $principalId -Scope $keyVault.ResourceId -RoleDefinitionName "Key Vault Secrets User" -ErrorAction SilentlyContinue
+                                    
+                                    if (-not $existingAssignment) {
+                                        Write-StatusMessage "Granting Key Vault Secrets User role to $($app.Name)..." -Type Info
+                                        New-AzRoleAssignment -ObjectId $principalId -RoleDefinitionName "Key Vault Secrets User" -Scope $keyVault.ResourceId -ErrorAction Stop
+                                        Write-StatusMessage "✅ Role assigned to $($app.Name)" -Type Success
+                                    } else {
+                                        Write-StatusMessage "✅ Role already assigned to $($app.Name)" -Type Success
+                                    }
+                                }
+                                catch {
+                                    Write-StatusMessage "⚠️ Failed to assign role to $($app.Name): $($_.Exception.Message)" -Type Warning
+                                }
+                            }
+                        }
+                    } elseif ($keyVault) {
+                        Write-StatusMessage "Key Vault uses access policies (RBAC not enabled)" -Type Info
+                    } else {
+                        Write-StatusMessage "⚠️ Key Vault 'nostria-kv' not found in global resource group" -Type Warning
+                    }
+                }
+                catch {
+                    Write-StatusMessage "⚠️ Error configuring Key Vault RBAC: $($_.Exception.Message)" -Type Warning
+                }
             } else {
                 Write-StatusMessage "Deployment to $region failed. Status: $($deployment.ProvisioningState)" -Type Error
             }

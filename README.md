@@ -71,8 +71,11 @@ sudo systemctl restart caddy
 Use the deployment scripts to deploy the infrastructure:
 
 ```powershell
-# Deploy main infrastructure
+# Deploy main infrastructure (includes Key Vault for secure secrets)
 ./scripts/deploy-main.ps1
+
+# With Blossom admin password stored in Key Vault
+./scripts/deploy-main.ps1 -BlossomAdminPassword (ConvertTo-SecureString "your-secure-password" -AsPlainText -Force)
 
 # Deploy regional container-based services
 ./scripts/deploy-region.ps1 -Regions eu,us,af
@@ -83,6 +86,16 @@ Use the deployment scripts to deploy the infrastructure:
 # Deploy VM-based discovery relay servers
 ./scripts/deploy-discovery-relay-vm.ps1 -Region "eu"
 ```
+
+**⚠️ Important Deployment Order:**
+1. **Always run `deploy-main.ps1` FIRST** - This creates the Key Vault and global resources
+2. **Then run `deploy-region.ps1`** - This deploys regional resources that reference the Key Vault
+
+**Key Vault Integration:**
+- When you provide `-BlossomAdminPassword`, it's securely stored in Azure Key Vault
+- Media servers automatically receive the password via environment variables
+- No passwords are stored in configuration files or source code
+- See `docs/keyvault-admin-password-integration.md` for detailed documentation
 
 ### Deploying Relay VM
 

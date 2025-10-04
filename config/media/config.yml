@@ -9,8 +9,9 @@ dashboard:
   enabled: true
   # admin username
   username: admin
-  # if password is left blank it will be generated each time the app starts
-  # password: ""
+  # Admin password from Azure Key Vault via environment variable
+  # If BLOSSOM_ADMIN_PASSWORD env var is not set, password will be generated each time the app starts
+  password: "${BLOSSOM_ADMIN_PASSWORD}"
 
 discovery:
   # find files by querying nostr relays

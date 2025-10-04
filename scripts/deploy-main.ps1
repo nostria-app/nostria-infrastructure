@@ -16,7 +16,10 @@ param (
     [SecureString]$PostgreSQLAdminPassword,
 
     [Parameter(Mandatory=$false)]
-    [switch]$DeployPostgreSQL
+    [switch]$DeployPostgreSQL,
+
+    [Parameter(Mandatory=$false)]
+    [SecureString]$BlossomAdminPassword
 )
 
 function Write-StatusMessage {
@@ -192,12 +195,23 @@ if ($WhatIf) {
             
             $deploymentParams['deployPostgreSQL'] = $false
             Write-StatusMessage "PostgreSQL deployment disabled. Use -DeployPostgreSQL to enable PostgreSQL resources." -Type Info
-            
-            # Use parameter file when no additional parameters override defaults
-            if (-not $PostgreSQLAdminPassword) {
-                $deploymentParams['TemplateParameterFile'] = $bicepParamFile
-                Write-StatusMessage "Using parameter file for deployment." -Type Info
-            }
+        }
+
+        # Add Blossom admin password if provided
+        if ($BlossomAdminPassword) {
+            $deploymentParams['blossomAdminPassword'] = $BlossomAdminPassword
+            Write-StatusMessage "Blossom admin password provided and will be stored in Key Vault." -Type Info
+        } else {
+            Write-StatusMessage "No Blossom admin password provided. Media servers will generate random passwords." -Type Warning
+        }
+        
+        # Determine whether to use parameter file
+        $useParameterFile = -not $shouldDeployPostgreSQL -and -not $BlossomAdminPassword
+        if ($useParameterFile) {
+            $deploymentParams['TemplateParameterFile'] = $bicepParamFile
+            Write-StatusMessage "Using parameter file for deployment." -Type Info
+        } else {
+            Write-StatusMessage "Using template file directly with custom parameters." -Type Info
         }
         
         if ($Debug) {
@@ -264,6 +278,56 @@ if ($WhatIf) {
         Write-StatusMessage "5. Try a test deployment with only essential resources to isolate the issue" -Type Info
         
         exit 1
+    }
+}
+
+# Post-deployment: Ensure RBAC roles are assigned for Key Vault access
+if ($BlossomAdminPassword) {
+    Write-StatusMessage "`nConfiguring Key Vault RBAC permissions..." -Type Info
+    
+    try {
+        # Get the Key Vault
+        $keyVault = Get-AzKeyVault -VaultName "nostria-kv" -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
+        
+        if ($keyVault) {
+            # Check if Key Vault uses RBAC authorization
+            if ($keyVault.EnableRbacAuthorization) {
+                Write-StatusMessage "Key Vault uses RBAC authorization. Ensuring all apps have proper access..." -Type Info
+                
+                # Get all web apps in this resource group that might need Key Vault access
+                $webApps = Get-AzWebApp -ResourceGroupName $ResourceGroupName | Where-Object {
+                    $_.SiteConfig.AppSettings | Where-Object {$_.Value -like "*@Microsoft.KeyVault*"}
+                }
+                
+                foreach ($app in $webApps) {
+                    $principalId = $app.Identity.PrincipalId
+                    if ($principalId) {
+                        try {
+                            # Check if role assignment already exists
+                            $existingAssignment = Get-AzRoleAssignment -ObjectId $principalId -Scope $keyVault.ResourceId -RoleDefinitionName "Key Vault Secrets User" -ErrorAction SilentlyContinue
+                            
+                            if (-not $existingAssignment) {
+                                Write-StatusMessage "Granting Key Vault Secrets User role to $($app.Name)..." -Type Info
+                                New-AzRoleAssignment -ObjectId $principalId -RoleDefinitionName "Key Vault Secrets User" -Scope $keyVault.ResourceId -ErrorAction Stop
+                                Write-StatusMessage "✅ Role assigned to $($app.Name)" -Type Success
+                            } else {
+                                Write-StatusMessage "✅ Role already assigned to $($app.Name)" -Type Success
+                            }
+                        }
+                        catch {
+                            Write-StatusMessage "⚠️ Failed to assign role to $($app.Name): $($_.Exception.Message)" -Type Warning
+                        }
+                    }
+                }
+            } else {
+                Write-StatusMessage "Key Vault uses access policies (RBAC not enabled)" -Type Info
+            }
+        } else {
+            Write-StatusMessage "⚠️ Key Vault 'nostria-kv' not found in resource group $ResourceGroupName" -Type Warning
+        }
+    }
+    catch {
+        Write-StatusMessage "⚠️ Error configuring Key Vault RBAC: $($_.Exception.Message)" -Type Warning
     }
 }
 

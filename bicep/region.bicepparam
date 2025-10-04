@@ -3,6 +3,8 @@ using 'region.bicep'
 param currentRegion = 'eu'
 param baseAppName = 'nostria'
 param defaultMediaCount = 1
+param keyVaultName = 'nostria-kv'
+param globalResourceGroupName = 'nostria-global'
 
 param appServicePlanSkus = {
   eu: {

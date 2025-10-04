@@ -9,14 +9,11 @@ param storageAccountName string = ''
 param configContent string = ''
 param configFileName string = 'config.yml'
 param startupCommand string = ''
+param keyVaultName string = ''
+param globalResourceGroupName string = 'nostria-global'
 
-// Get a reference to the storage account
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = if (!empty(storageAccountName)) {
-  name: storageAccountName
-}
-
-// Get storage account key for initial mount but app will use managed identity later
-var storageAccountKey = !empty(storageAccountName) ? storageAccount.listKeys().keys[0].value : ''
+// Get storage account key for initial mount but app will use managed identity later  
+var storageAccountKey = !empty(storageAccountName) ? listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountName), '2023-01-01').keys[0].value : ''
 
 // Write config file directly to storage account using ARM template deployment
 resource configFile 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (!empty(configContent) && !empty(storageAccountName)) {
@@ -201,6 +198,17 @@ resource containerApp 'Microsoft.Web/sites@2024-04-01' = {
   dependsOn: [
     configFile
   ]
+}
+
+// Grant Key Vault access to the container app's managed identity (RBAC approach)
+// Note: This only works when Key Vault is in the same resource group
+// For cross-resource-group scenarios, the role assignment should be done separately
+module keyVaultAccess 'key-vault-rbac-assignment.bicep' = if (!empty(keyVaultName) && globalResourceGroupName == resourceGroup().name) {
+  name: '${name}-kv-rbac'
+  params: {
+    keyVaultName: keyVaultName
+    principalId: containerApp.identity.principalId
+  }
 }
 
 resource slotConfig 'Microsoft.Web/sites/config@2022-09-01' = {

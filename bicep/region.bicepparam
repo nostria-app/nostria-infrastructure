@@ -5,6 +5,7 @@ param baseAppName = 'nostria'
 param defaultMediaCount = 1
 param keyVaultName = 'nostria-kv'
 param globalResourceGroupName = 'nostria-global'
+param createKeyVaultRbacAssignments = false // Disable since we already have manual assignments
 
 param appServicePlanSkus = {
   eu: {

@@ -20,6 +20,9 @@ param keyVaultName string = ''
 @description('Resource group where the Key Vault is located')
 param globalResourceGroupName string = 'nostria-global'
 
+@description('Whether to create Key Vault RBAC role assignments (disable if they already exist)')
+param createKeyVaultRbacAssignments bool = false
+
 // Read the media configuration file
 var mediaConfigContent = loadTextContent('../config/media/config.yml')
 
@@ -95,7 +98,7 @@ module mediaApps 'modules/container-app.bicep' = [
 
 // Grant Key Vault RBAC roles to media apps (cross-resource-group)
 module mediaAppsKeyVaultRbac 'modules/cross-rg-key-vault-rbac.bicep' = [
-  for i in range(0, mediaCount): if (!empty(keyVaultName)) {
+  for i in range(0, mediaCount): if (!empty(keyVaultName) && createKeyVaultRbacAssignments) {
     name: '${baseAppName}-${currentRegion}-media-${toLower(mediaNames[i])}-kv-rbac'
     params: {
       principalId: mediaApps[i].outputs.webAppPrincipalId

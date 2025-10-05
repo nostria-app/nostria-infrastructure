@@ -7,7 +7,10 @@ param (
     [string[]]$Regions,
     
     [Parameter(Mandatory=$false)]
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$SkipRbacAssignments
 )
 
 function Write-StatusMessage {
@@ -197,6 +200,13 @@ foreach ($region in $deployRegions) {
                 currentRegion = $region
                 ErrorAction = 'Stop'
             }
+            
+            # Add RBAC parameter if specified
+            if ($SkipRbacAssignments) {
+                $deploymentParams['createKeyVaultRbacAssignments'] = $false
+                Write-StatusMessage "RBAC assignments will be skipped (manual assignments expected)" -Type Info
+            }
+            
             $deployment = New-AzResourceGroupDeployment @deploymentParams
             if ($deployment.ProvisioningState -eq "Succeeded") {
                 Write-StatusMessage "Deployment to $region succeeded!" -Type Success

@@ -224,6 +224,48 @@ module managementAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [managementApp]
 }
 
+// Notification App (Single instance)
+module notificationApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-notification-app-deployment'
+  params: {
+    name: 'nostria-notification-app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-notification:latest'
+    customDomainName: 'notification.nostria.app'
+    appSettings: concat([
+      {
+        name: 'ADMIN_PUBKEYS'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+      }
+      {
+        name: 'ENABLE_DAEMON'
+        value: 'true'
+      }
+      {
+        name: 'NOSTRIA_API_URL'
+        value: 'https://api.nostria.app'
+      }
+      {
+        name: 'NOSTRIA_API_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=nostria-api-key)'
+      }
+    ])
+  }
+}
+
+// Certificate for Notification App
+module notificationAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-notification-app-cert-deployment'
+  params: {
+    name: 'nostria-notification-app'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'notification.nostria.app'
+  }
+  dependsOn: [notificationApp]
+}
+
 // Find App (Single instance)
 module findApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-find-app-deployment'

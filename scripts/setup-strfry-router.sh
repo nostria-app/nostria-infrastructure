@@ -150,6 +150,26 @@ cat >> /etc/strfry/strfry-router.conf << 'EOF'
         # pluginUp = "/etc/strfry/plugins/validate-events.js"
     }
     
+    # Two-way sync with Coracle indexer
+    # Sync relay lists (kind 10002) bidirectionally
+    # Note: Coracle only supports kind 10002, not kind 3
+    coracle {
+        dir = "both"
+        
+        # Filter to only sync event kind 10002
+        filter = {
+            "kinds": [10002]
+        }
+        
+        urls = [
+            "wss://indexer.coracle.social/"
+        ]
+        
+        # Optional: Add plugin for additional filtering if needed
+        # pluginDown = "/etc/strfry/plugins/validate-events.js"
+        # pluginUp = "/etc/strfry/plugins/validate-events.js"
+    }
+    
     # One-way sync (down only) from Damus relay
     # Only download event kinds 3 and 10002, don't push local events
     damus {
@@ -379,6 +399,12 @@ else
     echo "✗ purplepag.es is not reachable"
 fi
 
+if curl -s --connect-timeout 5 https://indexer.coracle.social/ >/dev/null 2>&1; then
+    echo "✓ indexer.coracle.social is reachable"
+else
+    echo "✗ indexer.coracle.social is not reachable"
+fi
+
 # Show recent router logs
 echo -e "\n=== Recent Router Logs ==="
 journalctl -u strfry-router --no-pager -n 15 --since "10 minutes ago" || true
@@ -412,6 +438,7 @@ if [ "$CURRENT_REGION" != "af" ]; then
     echo "  - discovery.af.nostria.app (Nostria AF Discovery Relay)"
 fi
 echo "  - purplepag.es (External relay)"
+echo "  - indexer.coracle.social (Coracle indexer)"
 echo ""
 echo "One-way sync (download only) from:"
 echo "  - relay.damus.io"

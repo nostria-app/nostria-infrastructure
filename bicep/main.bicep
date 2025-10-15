@@ -122,7 +122,9 @@ module websiteApp 'modules/container-app.bicep' = {
     appSettings: [
       {
         name: 'BLOSSOM_ADMIN_PASSWORD'
-        value: !empty(blossomAdminPassword) ? '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=blossom-admin-password)' : ''
+        value: !empty(blossomAdminPassword)
+          ? '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=blossom-admin-password)'
+          : ''
       }
     ]
   }
@@ -236,7 +238,7 @@ module notificationApp 'modules/container-app.bicep' = {
     appSettings: concat([
       {
         name: 'ADMIN_PUBKEYS'
-        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515,d1bd33333733dcc411f0ee893b38b8522fc0de227fff459d99044ced9e65581b'
       }
       {
         name: 'ENABLE_DAEMON'
@@ -312,7 +314,7 @@ module serviceApp 'modules/container-app.bicep' = {
       }
       {
         name: 'ADMIN_PUBKEYS'
-        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515'
+        value: '17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515,d1bd33333733dcc411f0ee893b38b8522fc0de227fff459d99044ced9e65581b'
       }
       {
         name: 'USE_POSTGRESQL'
@@ -337,6 +339,10 @@ module serviceApp 'modules/container-app.bicep' = {
       {
         name: 'NOTIFICATION_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=notification-api-key)'
+      }
+      {
+        name: 'SERVICE_API_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=nostria-api-key)'
       }
       // {
       //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'

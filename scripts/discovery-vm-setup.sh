@@ -536,7 +536,7 @@ relay {
         description = "A specialized Nostria discovery relay running on dedicated VM infrastructure with strfry and Caddy. This relay provides discovery and relay listing services for the Nostria network, helping users find and connect to other relays in the network."
 
         # NIP-11: Administrative nostr pubkey, for contact purposes
-        pubkey = "17e2889fba01021d048a13fd0ba108ad31c38326295460c21e69c43fa8fbe515"
+        pubkey = "d1bd33333733dcc411f0ee893b38b8522fc0de227fff459d99044ced9e65581b"
 
         # NIP-11: Alternative contact
         contact = "mailto:admin@nostria.app"

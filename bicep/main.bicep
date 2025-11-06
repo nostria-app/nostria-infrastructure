@@ -344,6 +344,14 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'SERVICE_API_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=nostria-api-key)'
       }
+      {
+        name: 'NOSTR_ZAP_RELAYS'
+        value: 'wss://ribo.eu.nostria.app,wss://ribo.af.nostria.app,wss://ribo.us.nostria.app,wss://relay.damus.io,wss://relay.primal.net'
+      }
+      {
+        name: 'NOSTR_PREMIUM_NOTIFICATION_PRIVATE_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=nostria-premium-key)'
+      }
       // {
       //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'
       //   value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'

@@ -201,9 +201,9 @@ else
 fi
 
 echo "Testing sync with $TEST_NAME..."
-echo "Command: sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf sync '$TEST_RELAY' --filter '{\"kinds\":[10002]}' --limit 1"
+echo "Command: sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf sync $TEST_RELAY --filter='{\"kinds\":[10002]}' --dir=down"
 
-if timeout 30 sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf sync "$TEST_RELAY" --filter '{"kinds":[10002]}' --limit 1 2>&1; then
+if timeout 30 sudo -u strfry /usr/local/bin/strfry --config=/etc/strfry/strfry.conf sync $TEST_RELAY --filter='{"kinds":[10002]}' --dir=down 2>&1 | head -n 50; then
     echo "✓ Manual sync test completed"
 else
     echo "✗ Manual sync test failed or timed out"

@@ -176,6 +176,31 @@ module mainAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [mainApp]
 }
 
+// Beta App (Single instance)
+module betaApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-beta-app-deployment'
+  params: {
+    name: 'nostria-beta'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria:latest'
+    customDomainName: 'beta.nostria.app'
+    appSettings: []
+  }
+}
+
+// Certificate for Beta App
+module betaAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-beta-app-cert-deployment'
+  params: {
+    name: 'nostria-beta'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'beta.nostria.app'
+  }
+  dependsOn: [betaApp]
+}
+
 // Metadata App (Single instance)
 module metadataApp 'modules/container-app.bicep' = {
   name: '${baseAppName}-metadata-app-deployment'

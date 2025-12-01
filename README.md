@@ -71,6 +71,12 @@ sudo systemctl restart caddy
 ```bash
 sudo apt install micro
 sudo micro /etc/strfry/strfry.conf
+sudo systemctl restart strfry
+
+sudo apt update        # Refresh package lists
+sudo apt upgrade -y    # Upgrade installed packages
+sudo apt full-upgrade -y   # Upgrade with dependency changes (kernel, etc.)
+sudo apt autoremove -y     # Clean up unused packages
 ```
 
 ### Deploying the Infrastructure

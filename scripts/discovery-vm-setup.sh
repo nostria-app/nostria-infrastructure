@@ -566,7 +566,7 @@ relay {
         }
 
         # NIP-11: Posting policy URL
-        posting_policy = "https://nostria.app/posting-policy"
+        posting_policy = "https://www.nostria.app/policy"
 
         # NIP-11: Fees (none for now)
         fees {

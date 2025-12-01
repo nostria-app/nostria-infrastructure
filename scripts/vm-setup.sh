@@ -255,7 +255,7 @@ dbParams {
 
 events {
     # Maximum size of normalised JSON, in bytes
-    maxEventSize = 65536
+    maxEventSize = 524288
 
     # Events newer than this will be rejected
     rejectEventsNewerThanSeconds = 900
@@ -270,7 +270,7 @@ events {
     ephemeralEventsLifetimeSeconds = 300
 
     # Maximum number of tags allowed
-    maxNumTags = 2000
+    maxNumTags = 5000
 
     # Maximum size for tag values, in bytes
     maxTagValSize = 1024
@@ -294,7 +294,7 @@ relay {
         name = "Nostria VM Relay"
 
         # NIP-11: Detailed plain-text description of relay
-        description = "A high-performance Nostria relay running on dedicated VM infrastructure with strfry and Caddy"
+        description = "A high-performance Nostria relay running on dedicated VM infrastructure with strfry and Caddy. This relay provides reliable nostr event storage and forwarding for the Nostria network."
 
         # NIP-11: Administrative nostr pubkey, for contact purposes
         pubkey = "d1bd33333733dcc411f0ee893b38b8522fc0de227fff459d99044ced9e65581b"
@@ -311,6 +311,7 @@ relay {
 
         # NIP-11: Relay limitations
         limitation {
+            # Maximum number of concurrent connections
             max_ws_frame_size = 131072
             max_connections = 1000
             max_subscriptions = 20
@@ -326,7 +327,7 @@ relay {
         }
 
         # NIP-11: Posting policy URL
-        posting_policy = "https://nostria.app/posting-policy"
+        posting_policy = "https://www.nostria.app/policy"
 
         # NIP-11: Fees (none for now)
         fees {
@@ -344,32 +345,127 @@ relay {
 
     # Websocket compression is enabled by default; uncomment to disable
     # compression = false
+
+    # Allow all IP addresses (since we're behind Caddy reverse proxy)
+    # To restrict access, uncomment and configure:
+    # allowedIps = ["0.0.0.0/0"]
 }
 
-# Enable built-in monitoring webserver
+# Path to custom plugin script (commented out for now)
+# plugin = "/etc/strfry/plugins/nostria-policy.js"
+
+# Enable built-in monitoring webserver (accessible via Caddy)
 monitoring {
     bind = "127.0.0.1"
     port = 7778
 }
 
-# Event retention policy
+# Event retention policy - customize based on relay requirements
 retention = [
+    # Keep the latest profile events (kind 0) for each pubkey
     {
-        kinds = [0, 3]
+        kinds = [0]
         count = 1
     },
+    # Keep contact lists (kind 3) for each pubkey
+    {
+        kinds = [3]
+        count = 1
+    },
+    # Keep text notes (kind 1) for 30 days
     {
         kinds = [1]
-        time = 2592000
+        time = 157680000  # 5 years (approx, ignoring leap years)
+        # time = 2592000  # 30 days
     },
+    # Keep reactions (kind 7) for 7 days
     {
         kinds = [7]
-        time = 604800
+        time = 157680000  # 5 years (approx, ignoring leap years)
     },
+    # Keep DMs (kind 4) for 90 days
     {
-        time = 604800
+        kinds = [4]
+        time = 157680000  # 5 years (approx, ignoring leap years)
+    },
+    # Keep deletions (kind 5) permanently
+    {
+        kinds = [5]
+        time = 0        # permanent
+    },
+    # Keep reposts (kind 6) for 30 days
+    {
+        kinds = [6]
+        time = 157680000  # 5 years (approx, ignoring leap years)
+    },
+    # Keep channel messages (kind 42) for 30 days
+    {
+        kinds = [42]
+        time = 157680000  # 5 years (approx, ignoring leap years)
+    },
+    # Keep replaceable events (kinds 10000-19999) - latest version only
+    {
+        kinds = [10000, 10001, 10002]
+        count = 1
+    },
+    # Keep ephemeral events (kinds 20000-29999) for 5 minutes only
+    {
+        kinds = [20000, 20001, 20002]
+        time = 300      # 5 minutes
+    },
+    # Default retention for all other events: 7 days
+    {
+        time = 157680000  # 5 years (approx, ignoring leap years)
     }
 ]
+
+# Ingestion settings
+ingestion {
+    # Enable/disable event ingestion
+    enabled = true
+    
+    # Maximum number of events to accept per second (rate limiting)
+    # maxEventsPerSecond = 100
+    
+    # Reject events from relays that are known to be problematic
+    # blockedRelays = []
+    
+    # Only accept events from specific relays (if configured)
+    # allowedRelays = []
+}
+
+# Logging configuration
+logging {
+    # Log level: trace, debug, info, warn, error
+    level = "info"
+    
+    # Enable structured logging
+    structured = true
+    
+    # Log to file
+    file = "/var/log/strfry/strfry.log"
+    
+    # Rotate log files
+    rotate = true
+    maxSize = "100MB"
+    maxFiles = 10
+}
+
+# Performance tuning
+performance {
+    # Number of worker threads for processing events
+    # (0 = auto-detect based on CPU cores)
+    workerThreads = 0
+    
+    # Buffer size for event processing
+    eventBufferSize = 1000
+    
+    # Enable memory-mapped I/O optimizations
+    useMmap = true
+    
+    # Cache size for frequently accessed data
+    cacheSize = "128MB"
+}
 EOF
 
 # Create strfry database directory with proper ownership

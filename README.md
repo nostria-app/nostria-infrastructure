@@ -66,6 +66,13 @@ sudo systemctl restart strfry
 sudo systemctl restart caddy
 ```
 
+### Updating strfry.confg
+
+```bash
+sudo apt install micro
+sudo micro /etc/strfry/strfry.conf
+```
+
 ### Deploying the Infrastructure
 
 Use the deployment scripts to deploy the infrastructure:

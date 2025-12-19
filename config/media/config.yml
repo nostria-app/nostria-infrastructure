@@ -30,8 +30,8 @@ storage:
   # local or s3
   backend: local
 
-  # Imminently removes a blob when there are no owners
-  removeWhenNoOwners: false
+  # Immediately removes a blob when there are no owners
+  removeWhenNoOwners: true
 
   # local storage
   local:
@@ -77,6 +77,8 @@ upload:
   requireAuth: true
   # only check rules that include "pubkeys"
   requirePubkeyInRule: false
+  # max file size in bytes (20 MB)
+  maxSize: 20971520
 
 # Config for the /media endpoint
 media:
@@ -89,6 +91,8 @@ media:
 
   # image optimization options
   image:
+    # max file size in bytes (20 MB)
+    maxSize: 20971520
     # image quality 0-100 (default 90)
     quality: 90
     # create progressive jpeg / png images for large images > 1024x768 (default true)
@@ -107,18 +111,21 @@ media:
     fps: 30
 
   video:
-    # video quality 0-100 (default 90)
-    quality: 90
+    # max file size in bytes (150 MB)
+    maxSize: 157286400
+    # video quality 0-100 (default 50)
+    # Note: 50 = CRF ~25 (good web quality), 70 = CRF ~15 (high quality)
+    quality: 50
     # max height (default 1080)
     maxHeight: 1080
     # max fps (default 30)
     maxFps: 30
     # output format [mp4, webm, mkv] (default mp4)
-    format: "webm"
+    format: "mp4"
     # audio codec [aac, mp3, vorbis, opus] (default aac)
-    audioCodec: "opus"
+    audioCodec: "aac"
     # video codec [libx264, libx265, vp8, vp9] (default libx264)
-    videoCodec: "vp9"
+    videoCodec: "libx265"
 
 list:
   requireAuth: true

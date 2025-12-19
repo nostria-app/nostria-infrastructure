@@ -125,7 +125,7 @@ media:
     # audio codec [aac, mp3, vorbis, opus] (default aac)
     audioCodec: "aac"
     # video codec [libx264, libx265, vp8, vp9] (default libx264)
-    videoCodec: "libx265"
+    videoCodec: "libx264"
 
 list:
   requireAuth: true

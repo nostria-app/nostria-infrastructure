@@ -61,7 +61,7 @@ resource dataDisk 'Microsoft.Compute/disks@2023-04-02' = {
     name: 'StandardSSD_LRS' // Cost-effective SSD tier
   }
   properties: {
-    diskSizeGB: 64
+    diskSizeGB: 256  // Increased from 64GB to handle growing LMDB database
     creationData: {
       createOption: 'Empty'
     }

@@ -74,6 +74,16 @@ module cosmosDb 'modules/cosmos-db.bicep' = {
   }
 }
 
+// Deploy Notification Hub namespace and hub
+module notificationHub 'modules/notification-hub.bicep' = {
+  name: '${baseAppName}-notification-hub-deployment'
+  params: {
+    namespaceName: 'nostria'
+    hubName: 'nostria'
+    location: 'westeurope'
+  }
+}
+
 // Deploy PostgreSQL Flexible Server for the application
 module postgresqlServer 'modules/postgresql.bicep' = if (deployPostgreSQL) {
   name: '${baseAppName}-postgresql-deployment'
@@ -550,6 +560,12 @@ output cosmosDbDocumentEndpoint string = cosmosDb.outputs.documentEndpoint
 output cosmosDbPrincipalId string = cosmosDb.outputs.principalId
 output cosmosDbDatabaseName string = cosmosDb.outputs.databaseName
 output cosmosDbContainerName string = cosmosDb.outputs.containerName
+
+// Notification Hub outputs
+output notificationHubNamespaceId string = notificationHub.outputs.namespaceId
+output notificationHubNamespaceName string = notificationHub.outputs.namespaceName
+output notificationHubId string = notificationHub.outputs.notificationHubId
+output notificationHubName string = notificationHub.outputs.notificationHubName
 
 // PostgreSQL outputs (only available when PostgreSQL is deployed)
 output postgresqlServerId string = deployPostgreSQL ? postgresqlServer!.outputs.serverId : ''

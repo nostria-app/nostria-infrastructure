@@ -37,9 +37,70 @@ function Write-StatusMessage {
     Write-Host $Message -ForegroundColor $color
 }
 
+function Get-DotEnvValue {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory=$true)]
+        [string]$Key
+    )
+
+    if (-not (Test-Path -Path $FilePath)) {
+        return $null
+    }
+
+    foreach ($line in Get-Content -Path $FilePath -ErrorAction SilentlyContinue) {
+        $trimmedLine = $line.Trim()
+
+        if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine.StartsWith('#')) {
+            continue
+        }
+
+        $parts = $trimmedLine -split '=', 2
+        if ($parts.Count -ne 2) {
+            continue
+        }
+
+        $currentKey = $parts[0].Trim()
+        if ($currentKey -ne $Key) {
+            continue
+        }
+
+        $value = $parts[1].Trim()
+        if ($value.Length -ge 2) {
+            if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+        }
+
+        return $value
+    }
+
+    return $null
+}
+
 # Get the script's directory to use as reference for resolving paths
 $scriptDir = $PSScriptRoot
 $repoRoot = Split-Path -Parent $scriptDir
+
+if (-not $BlossomAdminPassword) {
+    $dotEnvPath = Join-Path -Path $repoRoot -ChildPath '.env'
+    $blossomPasswordPlainText = Get-DotEnvValue -FilePath $dotEnvPath -Key 'BLOSSOM_ADMIN_PASSWORD'
+    $passwordSource = $null
+
+    if (-not [string]::IsNullOrWhiteSpace($blossomPasswordPlainText)) {
+        $passwordSource = '.env'
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:BLOSSOM_ADMIN_PASSWORD)) {
+        $blossomPasswordPlainText = $env:BLOSSOM_ADMIN_PASSWORD
+        $passwordSource = 'environment variable'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($blossomPasswordPlainText)) {
+        $BlossomAdminPassword = ConvertTo-SecureString -String $blossomPasswordPlainText -AsPlainText -Force
+        Write-StatusMessage "Using Blossom admin password from $passwordSource." -Type Info
+    }
+}
 
 function Ensure-BicepInstalled {
     $bicepInPath = $null

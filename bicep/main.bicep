@@ -549,6 +549,31 @@ module statusAppCert 'modules/container-app-certificate.bicep' = {
   dependsOn: [statusApp]
 }
 
+// relay monitor App (Single instance)
+module relayMonitorApp 'modules/container-app.bicep' = {
+  name: '${baseAppName}-relay-monitor-app-deployment'
+  params: {
+    name: 'nostria-relay-monitor'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    containerImage: 'ghcr.io/nostria-app/nostria-relay-monitor:latest'
+    customDomainName: 'monitor.nostria.app'
+    appSettings: []
+  }
+}
+
+// Certificate for relay monitor App
+module relayMonitorAppCert 'modules/container-app-certificate.bicep' = {
+  name: '${baseAppName}-relay-monitor-app-cert-deployment'
+  params: {
+    name: 'nostria-relay-monitor'
+    location: location
+    appServicePlanId: appServicePlan.outputs.id
+    customDomainName: 'monitor.nostria.app'
+  }
+  dependsOn: [relayMonitorApp]
+}
+
 // Outputs to provide easy access to important resource information
 output appServicePlanId string = appServicePlan.outputs.id
 output appServicePlanName string = appServicePlan.outputs.name

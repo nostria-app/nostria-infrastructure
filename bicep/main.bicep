@@ -387,6 +387,18 @@ module serviceApp 'modules/container-app.bicep' = {
         name: 'NOSTR_PREMIUM_NOTIFICATION_PRIVATE_KEY'
         value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=nostria-premium-key)'
       }
+      {
+        name: 'X_CONSUMER_KEY'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=x-consumer-key)'
+      }
+      {
+        name: 'X_CONSUMER_SECRET'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=x-consumer-secret)'
+      }
+      {
+        name: 'X_TOKEN_ENCRYPTION_SECRET'
+        value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=x-token-encryption-secret)'
+      }
       // {
       //   name: 'AZURE_COSMOSDB_CONNECTION_STRING'
       //   value: '@Microsoft.KeyVault(VaultName=${keyVault.outputs.keyVaultName};SecretName=database-connection-string)'

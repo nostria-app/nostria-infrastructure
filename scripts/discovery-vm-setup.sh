@@ -14,10 +14,12 @@ trap 'error_exit "Script failed" $LINENO "$BASH_COMMAND" $?' ERR
 
 # Get force update parameter if provided
 FORCE_UPDATE=${1:-"initial"}
+STRFRY_VERSION="1.1.0"
 
 # Log all output to a file for debugging
 exec > >(tee -a /var/log/discovery-vm-setup.log) 2>&1
 echo "Starting Discovery Relay VM setup at $(date) with force update: $FORCE_UPDATE"
+echo "Target strfry version: $STRFRY_VERSION"
 echo "Running on: $(hostname) ($(uname -a))"
 echo "Available memory: $(free -h)"
 echo "Available disk space: $(df -h)"
@@ -455,9 +457,9 @@ fi
 
 # Clone and compile strfry
 if [ "$RERUN" = "false" ] && [ ! -f "/usr/local/bin/strfry" ]; then
-    echo "Cloning and compiling strfry..."
+    echo "Cloning and compiling strfry $STRFRY_VERSION..."
     cd /tmp
-    git clone https://github.com/hoytech/strfry
+    git clone --branch "$STRFRY_VERSION" --depth 1 https://github.com/hoytech/strfry
     cd strfry
     git submodule update --init
     make setup-golpe
@@ -546,7 +548,7 @@ relay {
 
         # NIP-11: Software information
         software = "git+https://github.com/hoytech/strfry.git"
-        version = "latest"
+        version = "1.1.0"
 
         # NIP-11: Relay limitations
         limitation {
@@ -556,7 +558,7 @@ relay {
             max_subscriptions = 20
             max_filters = 100
             max_limit = 5000
-            max_subid_length = 100
+            max_subid_length = 64
             max_event_tags = 2000
             max_content_length = 8196
             min_pow_difficulty = 0
